@@ -86,11 +86,33 @@ const TeamModel = {
 
   async getSquad(teamId) {
     const result = await db.query(
-      `SELECT p.*, c.jersey_number, c.contract_type, c.start_date, c.end_date
+      `SELECT p.person_id, p.person_type, p.display_name, p.photo_url,
+              p.primary_position, p.height_cm, p.preferred_foot, p.market_value,
+              p.preferred_formation,
+              c.jersey_number, c.contract_type, c.start_date, c.end_date,
+              c.parent_club_id, c.matches_managed, c.wins, c.draws, c.losses,
+              co.name AS nationality,
+              pt.name AS parent_club_name
        FROM persons p
        JOIN contracts c ON p.person_id = c.person_id
-       WHERE c.team_id = $1 AND c.is_current = true AND c.contract_type IN ('player', 'loan')
-       ORDER BY p.primary_position, p.last_name`,
+       LEFT JOIN countries co ON p.nationality_id = co.country_id
+       LEFT JOIN teams pt ON c.parent_club_id = pt.team_id
+       WHERE c.team_id = $1 AND c.is_current = true
+       ORDER BY 
+         CASE c.contract_type 
+           WHEN 'player' THEN 1 
+           WHEN 'loan' THEN 2 
+           WHEN 'manager' THEN 3 
+         END,
+         CASE p.primary_position
+           WHEN 'GK' THEN 1
+           WHEN 'CB' THEN 2 WHEN 'LB' THEN 3 WHEN 'RB' THEN 4
+           WHEN 'CDM' THEN 5 WHEN 'CM' THEN 6 WHEN 'CAM' THEN 7
+           WHEN 'LW' THEN 8 WHEN 'RW' THEN 9
+           WHEN 'ST' THEN 10
+           ELSE 11
+         END,
+         c.jersey_number`,
       [teamId]
     );
     return result.rows;

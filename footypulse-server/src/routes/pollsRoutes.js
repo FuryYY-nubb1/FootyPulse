@@ -8,8 +8,16 @@ const { auth } = require('../middleware/auth');
 const pollRules = require('../validators/pollValidator');
 const validate = require('../middleware/validate');
 
+// Public
 router.get('/', controller.getAll);
 router.get('/:id', controller.getById);
+router.get('/:id/results', controller.getResults);
+router.get('/:id/user-vote/:userId', controller.getUserVote);
+
+// Vote (public — user_id sent in body)
+router.post('/:id/votes', controller.vote);
+
+// Admin / Auth required
 router.post('/', auth, pollRules.create, validate, controller.create);
 router.put('/:id', auth, controller.update);
 router.delete('/:id', auth, controller.remove);

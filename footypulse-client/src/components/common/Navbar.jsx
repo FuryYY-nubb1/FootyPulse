@@ -20,9 +20,12 @@ export default function Navbar() {
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="navbar__inner">
         <Link to="/" className="navbar__brand">
-          <span className="navbar__brand-icon">⚡</span>
-          Footy<span className="navbar__brand-pulse">Pulse</span>
-        </Link>
+  <img 
+    src="/log.png" 
+    alt="FootyPulse" 
+    style={{ height: 36, width: 'auto', objectFit: 'contain' }} 
+  />
+</Link>
 
         <ul className="navbar__links">
           {NAV_LINKS.map((link) => (

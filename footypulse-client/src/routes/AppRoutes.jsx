@@ -1,3 +1,7 @@
+// ============================================
+// src/routes/AppRoutes.jsx
+// ============================================
+
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import HomePage from '../pages/HomePage';
@@ -10,6 +14,7 @@ import CompetitionsPage from '../pages/CompetitionsPage';
 import CompetitionDetailPage from '../pages/CompetitionDetailPage';
 import TransfersPage from '../pages/TransfersPage';
 import PollsPage from '../pages/PollsPage';
+import PollDetailPage from '../pages/PollDetailPage';
 import NewsPage from '../pages/NewsPage';
 import ArticlePage from '../pages/ArticlePage';
 import SearchResultsPage from '../pages/SearchResultsPage';
@@ -32,6 +37,7 @@ export default function AppRoutes() {
       <Route path="/competitions/:id" element={<CompetitionDetailPage />} />
       <Route path="/transfers" element={<TransfersPage />} />
       <Route path="/polls" element={<PollsPage />} />
+      <Route path="/polls/:id" element={<PollDetailPage />} />
       <Route path="/news" element={<NewsPage />} />
       <Route path="/news/:id" element={<ArticlePage />} />
       <Route path="/search" element={<SearchResultsPage />} />

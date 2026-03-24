@@ -12,6 +12,7 @@ exports.getAll = asyncHandler(async (req, res) => {
   const filters = {
     country_id: req.query.country_id,
     team_type: req.query.team_type,
+    search: req.query.search,
   };
   const [teams, total] = await Promise.all([
     TeamModel.getAll(limit, offset, filters),

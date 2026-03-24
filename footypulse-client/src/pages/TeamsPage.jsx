@@ -28,12 +28,17 @@ export default function TeamsPage() {
     load();
   }, [page, search]);
 
+  const handleSearch = (query) => {
+    setPage(1);
+    setSearch(query);
+  };
+
   return (
     <div className="page-wrapper">
       <div className="container page-content">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-xl)', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
           <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 800 }}>Teams</h1>
-          <SearchBar placeholder="Search teams..." onSearch={setSearch} />
+          <SearchBar placeholder="Search teams..." onSearch={handleSearch} />
         </div>
         {loading ? <Loader text="Loading teams..." /> : (
           <>
