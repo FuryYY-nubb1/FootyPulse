@@ -5,7 +5,6 @@ import Tabs from '../components/common/Tabs';
 import Loader from '../components/common/Loader';
 import { formatDate } from '../utils/formatDate';
 
-// Group matches by date for display
 function groupByMatchDate(matches) {
   const groups = {};
   matches.forEach((m) => {
@@ -17,37 +16,85 @@ function groupByMatchDate(matches) {
   return groups;
 }
 
-function MatchGrid({ matches }) {
+function groupByCompetition(matches) {
+  const groups = {};
+  matches.forEach((m) => {
+    const key = m.competition_name || 'Other';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(m);
+  });
+  return groups;
+}
+
+function DateGroup({ dateKey, matches }) {
+  const byComp = groupByCompetition(matches);
+
+  return (
+    <div style={{
+      marginBottom: 'var(--space-lg)',
+      background: 'var(--bg-card)',
+      border: '1px solid var(--border-subtle)',
+      borderRadius: 'var(--radius-lg)',
+      overflow: 'hidden',
+    }}>
+      {/* Date Header */}
+      <div style={{
+        padding: '10px 24px',
+        background: 'var(--bg-secondary)',
+        borderBottom: '1px solid var(--border-subtle)',
+      }}>
+        <span style={{
+          fontSize: 'var(--fs-xs)',
+          fontWeight: 700,
+          color: 'var(--text-secondary)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.1em',
+        }}>
+          {formatDate(dateKey, 'long')}
+        </span>
+      </div>
+
+      {/* Competitions + Matches */}
+      {Object.entries(byComp).map(([compName, compMatches], ci) => (
+        <div key={compName}>
+          {/* Competition sub-header — WHITE text */}
+          <div style={{
+            padding: '5px 24px',
+            borderBottom: '1px solid var(--border-subtle)',
+            borderTop: ci > 0 ? '1px solid var(--border-subtle)' : 'none',
+            background: 'rgba(255,255,255,0.02)',
+          }}>
+            <span style={{
+              fontSize: 'var(--fs-xs)',
+              fontWeight: 700,
+              color: 'var(--text-primary)',   /* white, not green */
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            }}>
+              {compName}
+            </span>
+          </div>
+
+          {compMatches.map((match) => (
+            <MatchCard key={match.match_id || match.id} match={match} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MatchList({ matches, reverseDate = false }) {
   if (!matches.length) return null;
 
   const grouped = groupByMatchDate(matches);
+  let sorted = Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
+  if (reverseDate) sorted = sorted.reverse();   // newest first for results
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-      {Object.entries(grouped).map(([dateKey, dateMatches]) => (
-        <div key={dateKey}>
-          <div style={{
-            fontSize: 'var(--fs-sm)',
-            fontWeight: 600,
-            color: 'var(--text-secondary)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            marginBottom: 'var(--space-md)',
-            paddingBottom: 'var(--space-sm)',
-            borderBottom: '1px solid var(--border-subtle)',
-          }}>
-            {formatDate(dateKey, 'long')}
-          </div>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-            gap: 'var(--space-md)',
-          }}>
-            {dateMatches.map((m) => (
-              <MatchCard key={m.match_id || m.id} match={m} />
-            ))}
-          </div>
-        </div>
+    <div>
+      {sorted.map(([dateKey, dateMatches]) => (
+        <DateGroup key={dateKey} dateKey={dateKey} matches={dateMatches} />
       ))}
     </div>
   );
@@ -91,12 +138,12 @@ export default function MatchesPage() {
         if (liveRes.status === 'fulfilled') {
           const data = liveRes.value?.data || liveRes.value || [];
           setLiveMatches(data);
-          // Auto-switch to live tab if there are live matches
           if (data.length > 0) setActiveTab('live');
         }
 
         if (upcomingRes.status === 'fulfilled') {
           const data = upcomingRes.value?.data || upcomingRes.value || [];
+          // Upcoming: earliest date first
           setUpcomingMatches([...data].sort((a, b) => {
             const d = (a.match_date || '').localeCompare(b.match_date || '');
             return d !== 0 ? d : (a.kick_off_time || '').localeCompare(b.kick_off_time || '');
@@ -105,10 +152,10 @@ export default function MatchesPage() {
 
         if (recentRes.status === 'fulfilled') {
           const data = recentRes.value?.data || recentRes.value || [];
-          setRecentMatches([...data].sort((a, b) => {
-            const d = (b.match_date || '').localeCompare(a.match_date || '');
-            return d !== 0 ? d : (b.kick_off_time || '').localeCompare(a.kick_off_time || '');
-          }));
+          // Results: latest date first — sorted here too, but DateGroup will also reverse
+          setRecentMatches([...data].sort((a, b) =>
+            (b.match_date || '').localeCompare(a.match_date || '')
+          ));
         }
       } catch (err) {
         console.error('Failed to load matches:', err);
@@ -116,7 +163,6 @@ export default function MatchesPage() {
         setLoading(false);
       }
     };
-
     load();
   }, []);
 
@@ -131,11 +177,7 @@ export default function MatchesPage() {
   return (
     <div className="page-wrapper">
       <div className="container page-content">
-        <h1 style={{
-          fontSize: 'var(--fs-2xl)',
-          fontWeight: 800,
-          marginBottom: 'var(--space-lg)',
-        }}>
+        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 800, marginBottom: 'var(--space-lg)' }}>
           Matches
         </h1>
 
@@ -143,32 +185,24 @@ export default function MatchesPage() {
           <Loader text="Loading matches..." />
         ) : (
           <>
-            {/* Tab bar */}
             <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-            {/* Tab content */}
             {activeTab === 'live' && (
-              liveMatches.length > 0 ? (
-                <MatchGrid matches={liveMatches} />
-              ) : (
-                <EmptyState icon="📡" message="No live matches right now" />
-              )
+              liveMatches.length > 0
+                ? <MatchList matches={liveMatches} />
+                : <EmptyState icon="📡" message="No live matches right now" />
             )}
 
             {activeTab === 'upcoming' && (
-              upcomingMatches.length > 0 ? (
-                <MatchGrid matches={upcomingMatches} />
-              ) : (
-                <EmptyState icon="📅" message="No upcoming matches scheduled" />
-              )
+              upcomingMatches.length > 0
+                ? <MatchList matches={upcomingMatches} reverseDate={false} />
+                : <EmptyState icon="📅" message="No upcoming matches scheduled" />
             )}
 
             {activeTab === 'results' && (
-              recentMatches.length > 0 ? (
-                <MatchGrid matches={recentMatches} />
-              ) : (
-                <EmptyState icon="🏁" message="No recent results" />
-              )
+              recentMatches.length > 0
+                ? <MatchList matches={recentMatches} reverseDate={true} />
+                : <EmptyState icon="🏁" message="No recent results" />
             )}
           </>
         )}
