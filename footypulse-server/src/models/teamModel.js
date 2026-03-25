@@ -27,6 +27,11 @@ const TeamModel = {
       conditions.push(`t.team_type = $${idx++}`);
       values.push(filters.team_type);
     }
+    if (filters.search) {
+      conditions.push(`(t.name ILIKE $${idx} OR t.short_name ILIKE $${idx})`);
+      values.push(`%${filters.search}%`);
+      idx++;
+    }
 
     if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
     query += ` ORDER BY t.name LIMIT $${idx++} OFFSET $${idx}`;
@@ -86,33 +91,11 @@ const TeamModel = {
 
   async getSquad(teamId) {
     const result = await db.query(
-      `SELECT p.person_id, p.person_type, p.display_name, p.photo_url,
-              p.primary_position, p.height_cm, p.preferred_foot, p.market_value,
-              p.preferred_formation,
-              c.jersey_number, c.contract_type, c.start_date, c.end_date,
-              c.parent_club_id, c.matches_managed, c.wins, c.draws, c.losses,
-              co.name AS nationality,
-              pt.name AS parent_club_name
+      `SELECT p.*, c.jersey_number, c.contract_type, c.start_date, c.end_date
        FROM persons p
        JOIN contracts c ON p.person_id = c.person_id
-       LEFT JOIN countries co ON p.nationality_id = co.country_id
-       LEFT JOIN teams pt ON c.parent_club_id = pt.team_id
-       WHERE c.team_id = $1 AND c.is_current = true
-       ORDER BY 
-         CASE c.contract_type 
-           WHEN 'player' THEN 1 
-           WHEN 'loan' THEN 2 
-           WHEN 'manager' THEN 3 
-         END,
-         CASE p.primary_position
-           WHEN 'GK' THEN 1
-           WHEN 'CB' THEN 2 WHEN 'LB' THEN 3 WHEN 'RB' THEN 4
-           WHEN 'CDM' THEN 5 WHEN 'CM' THEN 6 WHEN 'CAM' THEN 7
-           WHEN 'LW' THEN 8 WHEN 'RW' THEN 9
-           WHEN 'ST' THEN 10
-           ELSE 11
-         END,
-         c.jersey_number`,
+       WHERE c.team_id = $1 AND c.is_current = true AND c.contract_type IN ('player', 'loan')
+       ORDER BY p.primary_position, p.last_name`,
       [teamId]
     );
     return result.rows;
@@ -125,6 +108,11 @@ const TeamModel = {
     let idx = 1;
     if (filters.country_id) { conditions.push(`country_id = $${idx++}`); values.push(filters.country_id); }
     if (filters.team_type) { conditions.push(`team_type = $${idx++}`); values.push(filters.team_type); }
+    if (filters.search) {
+      conditions.push(`(name ILIKE $${idx} OR short_name ILIKE $${idx})`);
+      values.push(`%${filters.search}%`);
+      idx++;
+    }
     if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
     const result = await db.query(query, values);
     return parseInt(result.rows[0].count);

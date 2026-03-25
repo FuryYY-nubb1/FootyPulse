@@ -8,17 +8,23 @@ export default function MatchCard({ match }) {
   const navigate = useNavigate();
   const status = getMatchStatus(match);
 
+  // Build proper display time by combining match_date + kick_off_time
+  const displayTime = formatTime(match.match_date, match.kick_off_time)
+    || formatTime(match.kick_off_time)
+    || formatTime(match.match_date)
+    || '';
+
   const statusLabels = {
     live: match.minute ? `${match.minute}'` : 'LIVE',
     finished: 'FT',
-    upcoming: formatTime(match.match_date || match.kick_off_time),
+    upcoming: displayTime,
     postponed: 'PST',
   };
 
   return (
     <div
       className={`match-card ${status === 'live' ? 'match-card--live' : ''}`}
-      onClick={() => navigate(`/matches/${match.match_id}`)}
+      onClick={() => navigate(`/matches/${match.match_id || match.id}`)}
     >
       <div className="match-card__header">
         <span className="match-card__competition">
@@ -45,7 +51,7 @@ export default function MatchCard({ match }) {
 
         {status === 'upcoming' ? (
           <div className="match-card__time">
-            {formatTime(match.match_date || match.kick_off_time)}
+            {displayTime || 'TBD'}
           </div>
         ) : (
           <div className="match-card__score">

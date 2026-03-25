@@ -15,7 +15,8 @@ export default function MatchList({ matches = [], loading, emptyMessage = 'No ma
     );
   }
 
-  const grouped = groupByDate(matches, 'date');
+  // Use 'match_date' as the grouping key (what the API actually returns)
+  const grouped = groupByDate(matches, 'match_date');
 
   return (
     <div className="match-list">
@@ -24,7 +25,7 @@ export default function MatchList({ matches = [], loading, emptyMessage = 'No ma
           <div className="match-list__date">{formatDate(dateKey, 'long')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 'var(--space-md)' }}>
             {dateMatches.map((match) => (
-              <MatchCard key={match.id} match={match} />
+              <MatchCard key={match.match_id || match.id} match={match} />
             ))}
           </div>
         </div>

@@ -29,7 +29,7 @@ export default function TeamsPage() {
   }, [page, search]);
 
   const handleSearch = (query) => {
-    setPage(1);
+    setPage(1);       // Reset to first page on new search
     setSearch(query);
   };
 
