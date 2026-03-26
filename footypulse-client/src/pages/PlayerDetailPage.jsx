@@ -44,6 +44,9 @@ export default function PlayerDetailPage() {
 
   if (loading) return <div className="page-wrapper"><Loader text="Loading player..." /></div>;
 
+  // Find the current contract (for jersey number, team info)
+  const currentContract = career.find(c => c.is_current) || career[0] || null;
+
   const tabs = [
     { key: 'stats', label: 'Stats' },
     { key: 'career', label: 'Career' },
@@ -54,11 +57,11 @@ export default function PlayerDetailPage() {
   return (
     <div className="page-wrapper">
       <div className="container page-content">
-        <Breadcrumb items={[{ label: 'Players', path: '/teams' }, { label: player?.name || 'Player' }]} />
-        <PlayerHeader player={player} />
+        <Breadcrumb items={[{ label: 'Players', path: '/teams' }, { label: player?.name || player?.display_name || 'Player' }]} />
+        <PlayerHeader player={player} currentContract={currentContract} />
         <div style={{ marginTop: 'var(--space-2xl)' }}>
           <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-          {activeTab === 'stats' && <PlayerStats stats={player} />}
+          {activeTab === 'stats' && <PlayerStats stats={player} playerId={id} />}
           {activeTab === 'career' && <PlayerCareer contracts={career} />}
           {activeTab === 'achievements' && <PlayerAchievements achievements={achievements} />}
           {activeTab === 'transfers' && <PlayerTransferHistory transfers={transfers} />}
