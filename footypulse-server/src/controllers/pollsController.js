@@ -14,6 +14,7 @@ exports.getAll = asyncHandler(async (req, res) => {
     status: req.query.status,
     poll_type: req.query.poll_type,
     featured: req.query.featured,
+    match_id: req.query.match_id || undefined,
   };
   const [polls, total] = await Promise.all([
     PollModel.getAll(limit, offset, filters),

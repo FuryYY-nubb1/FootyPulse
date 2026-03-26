@@ -7,7 +7,9 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 
 exports.getByMatch = asyncHandler(async (req, res) => {
-  const players = await MatchPlayerModel.getByMatch(req.params.matchId);
+  // Support both /match-players/match/:matchId and /matches/:id/players
+  const matchId = req.params.matchId || req.params.id;
+  const players = await MatchPlayerModel.getByMatch(matchId);
   res.json({ success: true, data: players });
 });
 

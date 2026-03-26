@@ -13,8 +13,20 @@ const MatchEventModel = {
       `SELECT me.*,
               p.display_name AS player_name,
               rp.display_name AS related_player_name,
-              t.name AS team_name
+              rp.display_name AS assist_name,
+              t.name AS team_name,
+              t.short_name AS team_short,
+              CASE
+                WHEN me.team_id = m.home_team_id THEN 'home'
+                WHEN me.team_id = m.away_team_id THEN 'away'
+                ELSE 'unknown'
+              END AS team_side,
+              CASE
+                WHEN me.team_id = m.home_team_id THEN true
+                ELSE false
+              END AS is_home
        FROM match_events me
+       JOIN matches m ON me.match_id = m.match_id
        LEFT JOIN persons p ON me.person_id = p.person_id
        LEFT JOIN persons rp ON me.related_person_id = rp.person_id
        JOIN teams t ON me.team_id = t.team_id
@@ -27,9 +39,23 @@ const MatchEventModel = {
 
   async getById(id) {
     const result = await db.query(
-      `SELECT me.*, p.display_name AS player_name, rp.display_name AS related_player_name,
-              t.name AS team_name
+      `SELECT me.*,
+              p.display_name AS player_name,
+              rp.display_name AS related_player_name,
+              rp.display_name AS assist_name,
+              t.name AS team_name,
+              t.short_name AS team_short,
+              CASE
+                WHEN me.team_id = m.home_team_id THEN 'home'
+                WHEN me.team_id = m.away_team_id THEN 'away'
+                ELSE 'unknown'
+              END AS team_side,
+              CASE
+                WHEN me.team_id = m.home_team_id THEN true
+                ELSE false
+              END AS is_home
        FROM match_events me
+       JOIN matches m ON me.match_id = m.match_id
        LEFT JOIN persons p ON me.person_id = p.person_id
        LEFT JOIN persons rp ON me.related_person_id = rp.person_id
        JOIN teams t ON me.team_id = t.team_id

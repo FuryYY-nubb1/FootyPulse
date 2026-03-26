@@ -14,6 +14,7 @@ const MatchModel = {
              ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
              at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
              s.name AS season_name, comp.name AS competition_name, comp.competition_id,
+             comp.logo_url AS competition_logo,
              st.name AS stadium_name,
              ref.display_name AS referee_name
       FROM matches m
@@ -52,7 +53,9 @@ const MatchModel = {
       `SELECT m.*,
               ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
               at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
-              s.name AS season_name, comp.name AS competition_name, comp.competition_id,
+              s.name AS season_name,
+              comp.name AS competition_name, comp.competition_id,
+              comp.logo_url AS competition_logo, comp.short_name AS competition_short,
               st.name AS stadium_name, st.city AS stadium_city,
               ref.display_name AS referee_name
        FROM matches m
@@ -121,7 +124,7 @@ const MatchModel = {
       `SELECT m.*,
               ht.name AS home_team_name, ht.logo_url AS home_logo,
               at.name AS away_team_name, at.logo_url AS away_logo,
-              comp.name AS competition_name
+              comp.name AS competition_name, comp.logo_url AS competition_logo
        FROM matches m
        JOIN teams ht ON m.home_team_id = ht.team_id
        JOIN teams at ON m.away_team_id = at.team_id
@@ -138,7 +141,7 @@ const MatchModel = {
       `SELECT m.*,
               ht.name AS home_team_name, ht.logo_url AS home_logo,
               at.name AS away_team_name, at.logo_url AS away_logo,
-              comp.name AS competition_name
+              comp.name AS competition_name, comp.logo_url AS competition_logo
        FROM matches m
        JOIN teams ht ON m.home_team_id = ht.team_id
        JOIN teams at ON m.away_team_id = at.team_id

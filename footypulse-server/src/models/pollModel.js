@@ -17,6 +17,7 @@ const PollModel = {
     if (filters.status) { conditions.push(`status = $${idx++}`); values.push(filters.status); }
     if (filters.poll_type) { conditions.push(`poll_type = $${idx++}`); values.push(filters.poll_type); }
     if (filters.featured !== undefined) { conditions.push(`featured = $${idx++}`); values.push(filters.featured); }
+    if (filters.match_id) { conditions.push(`match_id = $${idx++}`); values.push(filters.match_id); }
 
     if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
     query += ` ORDER BY featured DESC, created_at DESC LIMIT $${idx++} OFFSET $${idx}`;
@@ -29,6 +30,14 @@ const PollModel = {
   async getById(id) {
     const result = await db.query('SELECT * FROM polls WHERE poll_id = $1', [id]);
     return result.rows[0];
+  },
+
+  async getByMatch(matchId) {
+    const result = await db.query(
+      'SELECT * FROM polls WHERE match_id = $1 ORDER BY featured DESC, created_at DESC',
+      [matchId]
+    );
+    return result.rows;
   },
 
   async create(fields) {
@@ -111,6 +120,7 @@ const PollModel = {
     if (filters.status) { conditions.push(`status = $${idx++}`); values.push(filters.status); }
     if (filters.poll_type) { conditions.push(`poll_type = $${idx++}`); values.push(filters.poll_type); }
     if (filters.featured !== undefined) { conditions.push(`featured = $${idx++}`); values.push(filters.featured); }
+    if (filters.match_id) { conditions.push(`match_id = $${idx++}`); values.push(filters.match_id); }
 
     if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
 

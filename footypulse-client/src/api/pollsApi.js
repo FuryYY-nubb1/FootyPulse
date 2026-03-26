@@ -20,6 +20,9 @@ export const pollsApi = {
   // GET /polls?status=active
   getActive: () => api.get('/polls', { params: { status: 'active' } }),
 
+  // GET /polls?match_id=:matchId  — fetch polls linked to a specific match
+  getByMatch: (matchId) => api.get('/polls', { params: { match_id: matchId } }),
+
   // POST /polls/:id/votes  { user_id, selected_options }
   // Returns: { success: true, data: { vote: {...}, poll: {...} } }
   vote: (pollId, data) => api.post(`/polls/${pollId}/votes`, data),
