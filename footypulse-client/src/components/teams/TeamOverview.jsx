@@ -1,91 +1,67 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { articlesApi } from '../../api/articlesApi';
-import { formatDate, getRelativeTime } from '../../utils/formatDate';
+import MatchCard from '../matches/MatchCard';
 
-function OverviewArticleFeatured({ article }) {
+// ── Helpers ──
+function getRelativeTime(date) {
+  if (!date) return '';
+  const now = new Date();
+  const diff = now - new Date(date);
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ── Featured Article ──
+function FeaturedArticle({ article }) {
   const navigate = useNavigate();
   if (!article) return null;
 
   const media = typeof article.media === 'string' ? JSON.parse(article.media || '{}') : (article.media || {});
-  const image = media?.featured_image || null;
+  const image = media?.thumbnail || media?.featured_image || article.cover_image_url || null;
 
   return (
     <div
-      onClick={() => navigate(`/news/${article.slug || article.article_id}`)}
+      onClick={() => navigate(`/news/${article.slug || article.article_id || article.id}`)}
       style={{
         position: 'relative',
         borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
-        cursor: 'pointer',
-        minHeight: 400,
-        display: 'flex',
-        alignItems: 'flex-end',
         background: 'var(--bg-tertiary)',
-        transition: 'transform var(--transition-base)',
+        minHeight: 320,
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
       }}
-      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.01)'}
-      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
     >
       {image && (
-        <img
-          src={image}
-          alt={article.title}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          }}
-        />
+        <img src={image} alt="" style={{
+          position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.4,
+        }} />
       )}
       <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: 'linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.85) 100%)',
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)',
       }} />
-      <div style={{
-        position: 'relative',
-        padding: 'var(--space-xl)',
-        width: '100%',
-      }}>
+      <div style={{ position: 'relative', padding: 'var(--space-xl)' }}>
         {article.article_type && (
           <span style={{
-            display: 'inline-block',
-            padding: '3px 10px',
-            background: 'var(--accent-primary)',
-            color: 'var(--text-inverse)',
-            fontSize: 'var(--fs-xs)',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            borderRadius: 'var(--radius-sm)',
-            marginBottom: 'var(--space-sm)',
+            display: 'inline-block', background: 'var(--accent-primary)', color: 'var(--bg-primary)',
+            fontSize: 'var(--fs-xs)', fontWeight: 700, padding: '2px 10px', borderRadius: 'var(--radius-full)',
+            marginBottom: 'var(--space-sm)', textTransform: 'uppercase', letterSpacing: '0.06em',
           }}>
             {article.article_type}
           </span>
         )}
-        <h3 style={{
-          fontSize: 'var(--fs-xl)',
-          fontWeight: 800,
-          lineHeight: 1.2,
-          marginBottom: 'var(--space-sm)',
-          fontFamily: 'var(--font-display)',
-        }}>
+        <h3 style={{ fontSize: 'var(--fs-xl)', fontWeight: 800, color: '#fff', lineHeight: 1.3, marginBottom: 'var(--space-sm)' }}>
           {article.title}
         </h3>
         {article.excerpt && (
-          <p style={{
-            fontSize: 'var(--fs-sm)',
-            color: 'rgba(255,255,255,0.7)',
-            lineHeight: 1.5,
-            maxWidth: 500,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}>
+          <p style={{ fontSize: 'var(--fs-sm)', color: 'rgba(255,255,255,0.7)', lineHeight: 1.5, maxHeight: '3em', overflow: 'hidden' }}>
             {article.excerpt}
           </p>
         )}
@@ -94,171 +70,111 @@ function OverviewArticleFeatured({ article }) {
   );
 }
 
-function OverviewArticleCard({ article }) {
+// ── Side Article Card ──
+function SideArticleCard({ article }) {
   const navigate = useNavigate();
-
-  const media = typeof article.media === 'string' ? JSON.parse(article.media || '{}') : (article.media || {});
-  const image = media?.featured_image || null;
+  if (!article) return null;
 
   return (
     <div
-      onClick={() => navigate(`/news/${article.slug || article.article_id}`)}
+      onClick={() => navigate(`/news/${article.slug || article.article_id || article.id}`)}
       style={{
-        display: 'flex',
-        gap: 'var(--space-md)',
-        padding: 'var(--space-md)',
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-md)',
-        cursor: 'pointer',
-        transition: 'all var(--transition-fast)',
+        padding: 'var(--space-md)', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'all var(--transition-fast)',
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border-strong)';
-        e.currentTarget.style.background = 'var(--bg-card-hover)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border-subtle)';
-        e.currentTarget.style.background = 'var(--bg-card)';
-      }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.background = 'var(--bg-card-hover)'; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
     >
-      {image && (
-        <div style={{
-          width: 120,
-          height: 80,
-          borderRadius: 'var(--radius-sm)',
-          overflow: 'hidden',
-          flexShrink: 0,
-          background: 'var(--bg-tertiary)',
-        }}>
-          <img
-            src={image}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        </div>
-      )}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <h4 style={{
-          fontSize: 'var(--fs-sm)',
-          fontWeight: 700,
-          lineHeight: 1.3,
-          marginBottom: 'var(--space-xs)',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-        }}>
-          {article.title}
-        </h4>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--space-sm)',
-          fontSize: 'var(--fs-xs)',
-          color: 'var(--text-tertiary)',
-        }}>
-          {article.team_name && <span>{article.team_name}</span>}
-          {article.team_name && <span>·</span>}
-          <span>{getRelativeTime(new Date(article.published_at || article.created_at))}</span>
-        </div>
+      <h4 style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, lineHeight: 1.3, marginBottom: 'var(--space-xs)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        {article.title}
+      </h4>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', fontSize: 'var(--fs-xs)', color: 'var(--text-tertiary)' }}>
+        {article.team_name && <span>{article.team_name}</span>}
+        {article.team_name && <span>·</span>}
+        <span>{getRelativeTime(article.published_at || article.created_at)}</span>
       </div>
     </div>
   );
 }
 
-export default function TeamOverview({ teamId, teamName }) {
-  const [articles, setArticles] = useState([]);
-  const [loading, setLoading] = useState(true);
+// ── Section Header ──
+function SectionHeader({ title, linkText, linkPath }) {
+  const navigate = useNavigate();
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
+      <h3 style={{ fontSize: 'var(--fs-lg)', fontWeight: 800, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '-0.01em' }}>
+        {title}
+      </h3>
+      {linkText && linkPath && (
+        <span onClick={() => navigate(linkPath)} style={{ fontSize: 'var(--fs-sm)', color: 'var(--accent-primary)', fontWeight: 600, cursor: 'pointer' }}>
+          {linkText} →
+        </span>
+      )}
+    </div>
+  );
+}
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const res = await articlesApi.getAll({ team_id: teamId, limit: 6 });
-        setArticles(res?.data || res || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (teamId) load();
-  }, [teamId]);
 
-  if (loading) {
-    return (
-      <div>
-        <h2 style={{
-          fontSize: 'var(--fs-xl)',
-          fontWeight: 900,
-          fontFamily: 'var(--font-display)',
-          textTransform: 'uppercase',
-          marginBottom: 'var(--space-lg)',
-          letterSpacing: '-0.01em',
-        }}>
-          {teamName ? `${teamName} Overview` : 'Overview'}
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-lg)' }}>
-          <div className="skeleton" style={{ height: 400, borderRadius: 'var(--radius-lg)' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-            {[1, 2, 3].map(i => (
-              <div key={i} className="skeleton" style={{ height: 100, borderRadius: 'var(--radius-md)' }} />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+// ══════════════════════════════════════════
+// MAIN COMPONENT
+// ══════════════════════════════════════════
+export default function TeamOverview({ teamId, teamName, team, articles = [], fixtures = [] }) {
+  const navigate = useNavigate();
 
   const featured = articles[0] || null;
   const sideArticles = articles.slice(1, 5);
 
+  // Split fixtures into recent results and upcoming
+  const results = fixtures
+    .filter(m => m.status === 'finished')
+    .sort((a, b) => (b.match_date || '').localeCompare(a.match_date || ''))
+    .slice(0, 5);
+
+  const upcoming = fixtures
+    .filter(m => m.status === 'scheduled' || m.status === 'live')
+    .sort((a, b) => (a.match_date || '').localeCompare(b.match_date || ''))
+    .slice(0, 5);
+
+  // Stadium info from team object
+  const stadium = team?.stadium_name || null;
+  const stadiumCapacity = team?.capacity || team?.stadium_capacity || null;
+  const city = team?.city || null;
+  const country = team?.country_name || null;
+  const founded = team?.founded_year || null;
+
   return (
     <div>
-      <h2 style={{
-        fontSize: 'var(--fs-xl)',
-        fontWeight: 900,
-        fontFamily: 'var(--font-display)',
-        textTransform: 'uppercase',
-        marginBottom: 'var(--space-lg)',
-        letterSpacing: '-0.01em',
-      }}>
-        {teamName ? `${teamName} Overview` : 'Overview'}
-      </h2>
+      {/* ── SECTION 1: Latest News ── */}
+      <div style={{ marginBottom: 'var(--space-2xl)' }}>
+        <SectionHeader title="Latest News" />
 
-      {!articles.length ? (
-        <div style={{
-          textAlign: 'center',
-          padding: 'var(--space-3xl)',
-          color: 'var(--text-secondary)',
-          background: 'var(--bg-card)',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border-subtle)',
-        }}>
-          <p style={{ fontSize: 'var(--fs-md)', fontWeight: 600, marginBottom: 'var(--space-sm)' }}>No news available</p>
-          <p style={{ fontSize: 'var(--fs-sm)' }}>Check back later for the latest updates</p>
-        </div>
-      ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: sideArticles.length ? '2fr 1fr' : '1fr',
-          gap: 'var(--space-lg)',
-          alignItems: 'start',
-        }}>
-          {/* Featured article */}
-          {featured && <OverviewArticleFeatured article={featured} />}
+        {articles.length > 0 ? (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: sideArticles.length ? '2fr 1fr' : '1fr',
+            gap: 'var(--space-lg)',
+            alignItems: 'start',
+          }}>
+            <FeaturedArticle article={featured} />
+            {sideArticles.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+                {sideArticles.map(a => (
+                  <SideArticleCard key={a.article_id || a.id} article={a} />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{
+            textAlign: 'center', padding: 'var(--space-xl)', color: 'var(--text-tertiary)',
+            background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)',
+          }}>
+            <p style={{ fontSize: 'var(--fs-sm)' }}>No news available. Check back later.</p>
+          </div>
+        )}
+      </div>
 
-          {/* Side news cards */}
-          {sideArticles.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-              {sideArticles.map((a) => (
-                <OverviewArticleCard key={a.article_id || a.id} article={a} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+
     </div>
   );
 }

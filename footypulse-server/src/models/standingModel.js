@@ -3,6 +3,8 @@
 // ============================================
 // TABLE: standings → references: seasons, teams
 // USED BY: src/controllers/standingsController.js
+//
+// FIX: Alias t.logo_url AS team_logo (frontend expects team_logo)
 // ============================================
 
 const db = require('../config/db');
@@ -10,7 +12,10 @@ const db = require('../config/db');
 const StandingModel = {
   async getBySeason(seasonId, groupName = null) {
     let query = `
-      SELECT st.*, t.name AS team_name, t.short_name, t.logo_url,
+      SELECT st.*,
+             t.name AS team_name,
+             t.short_name,
+             t.logo_url AS team_logo,
              comp.name AS competition_name
       FROM standings st
       JOIN teams t ON st.team_id = t.team_id
@@ -32,7 +37,9 @@ const StandingModel = {
 
   async getById(id) {
     const result = await db.query(
-      `SELECT st.*, t.name AS team_name, t.logo_url
+      `SELECT st.*,
+              t.name AS team_name,
+              t.logo_url AS team_logo
        FROM standings st
        JOIN teams t ON st.team_id = t.team_id
        WHERE st.standing_id = $1`,
@@ -61,40 +68,35 @@ const StandingModel = {
            lost = COALESCE($5, lost), goals_for = COALESCE($6, goals_for),
            goals_against = COALESCE($7, goals_against), points = COALESCE($8, points),
            form = COALESCE($9, form)
-       WHERE standing_id = $10 RETURNING *`,
-      [fields.position, fields.played, fields.won, fields.drawn, fields.lost,
-       fields.goals_for, fields.goals_against, fields.points, fields.form, id]
+       WHERE standing_id = $10
+       RETURNING *`,
+      [fields.position, fields.played, fields.won, fields.drawn,
+       fields.lost, fields.goals_for, fields.goals_against, fields.points,
+       fields.form, id]
     );
     return result.rows[0];
   },
 
   async delete(id) {
-    const result = await db.query('DELETE FROM standings WHERE standing_id = $1 RETURNING *', [id]);
+    const result = await db.query(
+      'DELETE FROM standings WHERE standing_id = $1 RETURNING *', [id]
+    );
     return result.rows[0];
   },
 
-  // Bulk create standings for a season (e.g., when a new season starts)
-  async createBulk(seasonId, teamIds, groupName = null) {
-    const client = await db.getClient();
-    try {
-      await client.query('BEGIN');
-      const results = [];
-      for (let i = 0; i < teamIds.length; i++) {
-        const result = await client.query(
-          `INSERT INTO standings (season_id, group_name, team_id, position)
-           VALUES ($1, $2, $3, $4) RETURNING *`,
-          [seasonId, groupName, teamIds[i], i + 1]
-        );
-        results.push(result.rows[0]);
-      }
-      await client.query('COMMIT');
-      return results;
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
+  async createBulk(seasonId, teamIds, groupName) {
+    const results = [];
+    for (let i = 0; i < teamIds.length; i++) {
+      const r = await db.query(
+        `INSERT INTO standings (season_id, group_name, team_id, position, played, won, drawn, lost, goals_for, goals_against, points)
+         VALUES ($1, $2, $3, $4, 0, 0, 0, 0, 0, 0, 0)
+         ON CONFLICT (season_id, group_name, team_id) DO NOTHING
+         RETURNING *`,
+        [seasonId, groupName || null, teamIds[i], i + 1]
+      );
+      if (r.rows[0]) results.push(r.rows[0]);
     }
+    return results;
   },
 };
 

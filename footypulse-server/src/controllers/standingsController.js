@@ -1,11 +1,51 @@
 // ============================================
 // src/controllers/standingsController.js
 // ============================================
+// FIXED: Added getByQuery to handle frontend calls:
+//        GET /standings?competitionId=1&seasonId=1
+// ============================================
 
 const StandingModel = require('../models/standingModel');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
+const db = require('../config/db');
 
+// ── GET /standings?competitionId=1&seasonId=1 ──
+// This is what the frontend actually calls from standingsApi.getByCompetition()
+exports.getByQuery = asyncHandler(async (req, res) => {
+  const { competitionId, seasonId, group } = req.query;
+
+  // If seasonId is provided directly, use it
+  if (seasonId) {
+    const standings = await StandingModel.getBySeason(seasonId, group || null);
+    return res.json({ success: true, data: standings });
+  }
+
+  // If only competitionId, find the current season and get standings
+  if (competitionId) {
+    const seasonResult = await db.query(
+      `SELECT season_id FROM seasons
+       WHERE competition_id = $1 AND is_current = true
+       ORDER BY start_date DESC LIMIT 1`,
+      [competitionId]
+    );
+
+    if (seasonResult.rows.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const standings = await StandingModel.getBySeason(
+      seasonResult.rows[0].season_id,
+      group || null
+    );
+    return res.json({ success: true, data: standings });
+  }
+
+  // No params — return empty
+  res.json({ success: true, data: [] });
+});
+
+// ── GET /standings/season/:seasonId ──
 exports.getBySeason = asyncHandler(async (req, res) => {
   const standings = await StandingModel.getBySeason(
     req.params.seasonId,

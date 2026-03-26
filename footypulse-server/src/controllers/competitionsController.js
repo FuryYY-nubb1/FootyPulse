@@ -1,7 +1,9 @@
 // ============================================
 // src/controllers/competitionsController.js
 // ============================================
-// UPDATED: Added getSeasons, getMatches, getScorers, getNews
+// FIXED: getNews query — uses correct schema column names
+//        (media, view_count, author_name) and also finds
+//        articles linked via teams in the competition
 // ============================================
 
 const CompetitionModel = require('../models/competitionModel');
@@ -42,7 +44,6 @@ exports.getSeasons = asyncHandler(async (req, res) => {
 });
 
 // ── GET /competitions/:id/matches ──
-// Query params: seasonId, matchday, status
 exports.getMatches = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { seasonId, matchday, status } = req.query;
@@ -83,7 +84,7 @@ exports.getMatches = asyncHandler(async (req, res) => {
 
   const result = await db.query(query, values);
 
-  // Also get the available matchdays for this competition/season
+  // Also get available matchdays
   let matchdays = [];
   if (seasonId) {
     const mdResult = await db.query(
@@ -105,14 +106,11 @@ exports.getMatches = asyncHandler(async (req, res) => {
 });
 
 // ── GET /competitions/:id/scorers ──
-// Returns top scorers for a competition's current season
-// Uses match_events to aggregate goal counts
 exports.getScorers = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { seasonId, limit: queryLimit } = req.query;
   const limitVal = parseInt(queryLimit) || 20;
 
-  // Get the season (use provided or current)
   let sid = seasonId;
   if (!sid) {
     const sRes = await db.query(
@@ -126,7 +124,6 @@ exports.getScorers = asyncHandler(async (req, res) => {
     return res.json({ success: true, data: { scorers: [], assists: [], redCards: [] } });
   }
 
-  // Top Scorers (goals from match_events)
   const scorersQuery = await db.query(
     `SELECT p.person_id AS player_id, p.display_name AS player_name, p.photo_url AS photo,
             t.name AS team_name, t.logo_url AS team_logo,
@@ -144,7 +141,6 @@ exports.getScorers = asyncHandler(async (req, res) => {
     [sid, limitVal]
   );
 
-  // Top Assists
   const assistsQuery = await db.query(
     `SELECT p.person_id AS player_id, p.display_name AS player_name, p.photo_url AS photo,
             t.name AS team_name, t.logo_url AS team_logo,
@@ -163,7 +159,6 @@ exports.getScorers = asyncHandler(async (req, res) => {
     [sid, limitVal]
   );
 
-  // Red Cards
   const redCardsQuery = await db.query(
     `SELECT p.person_id AS player_id, p.display_name AS player_name, p.photo_url AS photo,
             t.name AS team_name, t.logo_url AS team_logo,
@@ -174,7 +169,7 @@ exports.getScorers = asyncHandler(async (req, res) => {
      JOIN contracts c ON c.person_id = p.person_id AND c.is_current = true
      JOIN teams t ON c.team_id = t.team_id
      WHERE m.season_id = $1
-       AND me.event_type = 'red_card'
+       AND me.event_type IN ('red', 'second_yellow')
      GROUP BY p.person_id, p.display_name, p.photo_url, t.name, t.logo_url
      ORDER BY red_cards DESC
      LIMIT $2`,
@@ -192,20 +187,48 @@ exports.getScorers = asyncHandler(async (req, res) => {
 });
 
 // ── GET /competitions/:id/news ──
-// Get articles related to this competition
+// FIXED: Uses correct schema columns (media, view_count, author_name)
+//        Also finds articles linked via teams that play in this competition
 exports.getNews = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { limit: queryLimit } = req.query;
   const limitVal = parseInt(queryLimit) || 10;
 
   const result = await db.query(
-    `SELECT a.article_id AS id, a.title, a.slug, a.excerpt, a.cover_image_url,
-            a.article_type, a.created_at, a.views,
-            u.name AS author_name
+    `SELECT DISTINCT
+            a.article_id AS id,
+            a.title,
+            a.slug,
+            a.excerpt,
+            a.media,
+            a.media->>'thumbnail' AS cover_image_url,
+            a.article_type,
+            a.published_at,
+            a.created_at,
+            a.view_count,
+            a.is_featured,
+            a.is_breaking,
+            a.author_name
      FROM articles a
-     LEFT JOIN users u ON a.author_id = u.user_id
-     WHERE a.competition_id = $1 AND a.status = 'published'
-     ORDER BY a.created_at DESC
+     LEFT JOIN teams t ON a.team_id = t.team_id
+     LEFT JOIN contracts c ON c.team_id = t.team_id AND c.is_current = true
+     LEFT JOIN seasons s ON s.competition_id = $1 AND s.is_current = true
+     LEFT JOIN matches m ON a.match_id = m.match_id
+     WHERE a.status = 'published'
+       AND (
+         a.competition_id = $1
+         OR a.team_id IN (
+           SELECT DISTINCT st.team_id FROM standings st
+           JOIN seasons s2 ON st.season_id = s2.season_id
+           WHERE s2.competition_id = $1
+         )
+         OR a.match_id IN (
+           SELECT m2.match_id FROM matches m2
+           JOIN seasons s3 ON m2.season_id = s3.season_id
+           WHERE s3.competition_id = $1
+         )
+       )
+     ORDER BY a.is_featured DESC, a.published_at DESC NULLS LAST
      LIMIT $2`,
     [id, limitVal]
   );

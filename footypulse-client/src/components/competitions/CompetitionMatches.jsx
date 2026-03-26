@@ -5,6 +5,14 @@ import MatchCard from '../matches/MatchCard';
 import Loader from '../common/Loader';
 import { formatDate } from '../../utils/formatDate';
 
+// Helper: safely extract data from axios + server response
+// axios: { data: { success: true, data: [...], matchdays: [...] } }
+function extractResponse(axiosRes) {
+  const outer = axiosRes?.data ?? axiosRes;
+  if (outer?.success !== undefined) return outer; // return the full server payload {success, data, matchdays}
+  return axiosRes;
+}
+
 // Group matches by date
 function groupMatchesByDate(matches) {
   const groups = {};
@@ -21,46 +29,50 @@ export default function CompetitionMatches({ competitionId, seasonId }) {
   const [matchdays, setMatchdays] = useState([]);
   const [selectedMatchday, setSelectedMatchday] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [initialLoaded, setInitialLoaded] = useState(false);
 
-  // Fetch matchdays & initial matches
+  // Fetch matchdays & all matches on mount
   useEffect(() => {
     if (!competitionId || !seasonId) return;
 
     const load = async () => {
       setLoading(true);
       try {
-        // First fetch to get matchday list
         const res = await competitionsApi.getMatches(competitionId, {
           seasonId,
-          limit: 200,
+          limit: 500,
         });
-        const data = res?.data || res || {};
-        const allMatches = data.data || data || [];
-        const mds = data.matchdays || [];
+
+        const payload = extractResponse(res);
+        const allMatches = payload.data || payload || [];
+        const mds = payload.matchdays || [];
 
         setMatchdays(mds);
 
-        // Auto-select the "current" matchday (latest with results, or first upcoming)
-        if (mds.length && !selectedMatchday) {
-          // Find the most recent matchday with finished matches
-          const finishedMatches = Array.isArray(allMatches)
-            ? allMatches.filter(m => m.status === 'finished')
-            : [];
+        // If there are matchdays, auto-select the current one
+        if (mds.length) {
+          const matchesArr = Array.isArray(allMatches) ? allMatches : [];
+          const finishedMatches = matchesArr.filter(m => m.status === 'finished');
 
           let currentMd = mds[0];
           if (finishedMatches.length) {
             const maxMd = Math.max(...finishedMatches.map(m => m.matchday || 0));
-            // Check if there are upcoming matches in this matchday
-            const hasUpcoming = Array.isArray(allMatches)
-              && allMatches.some(m => m.matchday === maxMd && m.status !== 'finished');
+            const hasUpcoming = matchesArr.some(
+              m => m.matchday === maxMd && m.status !== 'finished'
+            );
             currentMd = hasUpcoming ? maxMd : Math.min(maxMd + 1, mds[mds.length - 1]);
-            // Clamp to available matchdays
             if (!mds.includes(currentMd)) currentMd = maxMd;
           }
           setSelectedMatchday(currentMd);
+        } else {
+          // No matchdays — show all matches directly (UCL stages, cups, etc.)
+          setMatches(Array.isArray(allMatches) ? allMatches : []);
+          setSelectedMatchday(null);
         }
+
+        setInitialLoaded(true);
       } catch (err) {
-        console.error('Failed to load matchdays:', err);
+        console.error('Failed to load matches:', err);
       } finally {
         setLoading(false);
       }
@@ -68,9 +80,9 @@ export default function CompetitionMatches({ competitionId, seasonId }) {
     load();
   }, [competitionId, seasonId]);
 
-  // Fetch matches for selected matchday
+  // Fetch matches for selected matchday (only when matchdays exist)
   useEffect(() => {
-    if (!competitionId || !seasonId || !selectedMatchday) return;
+    if (!competitionId || !seasonId || !selectedMatchday || !initialLoaded) return;
 
     const load = async () => {
       setLoading(true);
@@ -80,18 +92,21 @@ export default function CompetitionMatches({ competitionId, seasonId }) {
           matchday: selectedMatchday,
           limit: 50,
         });
-        const data = res?.data || res || {};
-        setMatches(data.data || data || []);
+
+        const payload = extractResponse(res);
+        const matchesData = payload.data || payload || [];
+        setMatches(Array.isArray(matchesData) ? matchesData : []);
       } catch (err) {
-        console.error('Failed to load matches:', err);
+        console.error('Failed to load matches for matchday:', err);
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [competitionId, seasonId, selectedMatchday]);
+  }, [competitionId, seasonId, selectedMatchday, initialLoaded]);
 
   const grouped = groupMatchesByDate(matches);
+  const sortedDates = Object.keys(grouped).sort();
 
   return (
     <div>
@@ -106,12 +121,14 @@ export default function CompetitionMatches({ competitionId, seasonId }) {
         Fixtures, Live Scores & Results
       </h2>
 
-      {/* Game Week Selector */}
-      <GameWeekSelector
-        matchdays={matchdays}
-        selected={selectedMatchday}
-        onChange={setSelectedMatchday}
-      />
+      {/* Game Week Selector (only show if matchdays exist) */}
+      {matchdays.length > 0 && (
+        <GameWeekSelector
+          matchdays={matchdays}
+          selected={selectedMatchday}
+          onChange={setSelectedMatchday}
+        />
+      )}
 
       {/* Match List */}
       {loading ? (
@@ -125,34 +142,30 @@ export default function CompetitionMatches({ competitionId, seasonId }) {
           borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--border-subtle)',
         }}>
-          <div style={{ fontSize: '2rem', marginBottom: 'var(--space-md)', opacity: 0.4 }}>⚽</div>
-          <p>No matches found</p>
+          <p style={{ fontSize: '2rem', marginBottom: 'var(--space-sm)', opacity: 0.4 }}>⚽</p>
+          <p style={{ fontSize: 'var(--fs-sm)' }}>No matches found</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-          {Object.entries(grouped).map(([dateKey, dateMatches]) => (
+          {sortedDates.map((dateKey) => (
             <div key={dateKey}>
               {/* Date header */}
               <div style={{
-                fontSize: 'var(--fs-sm)',
-                fontWeight: 600,
-                color: 'var(--text-secondary)',
+                fontSize: 'var(--fs-xs)',
+                fontWeight: 700,
+                color: 'var(--text-tertiary)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
-                marginBottom: 'var(--space-md)',
-                paddingBottom: 'var(--space-sm)',
+                padding: 'var(--space-sm) 0',
+                marginBottom: 'var(--space-xs)',
                 borderBottom: '1px solid var(--border-subtle)',
               }}>
-                {formatDate(dateKey, 'long')}
+                {formatDate ? formatDate(dateKey) : dateKey}
               </div>
 
-              {/* Match cards */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                gap: 'var(--space-md)',
-              }}>
-                {dateMatches.map((match) => (
+              {/* Matches for this date */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
+                {grouped[dateKey].map((match) => (
                   <MatchCard key={match.match_id || match.id} match={match} />
                 ))}
               </div>

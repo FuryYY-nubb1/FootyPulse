@@ -6,11 +6,19 @@ import CompetitionHeader from '../components/competitions/CompetitionHeader';
 import CompetitionOverview from '../components/competitions/CompetitionOverview';
 import CompetitionMatches from '../components/competitions/CompetitionMatches';
 import StandingsTable from '../components/competitions/StandingsTable';
-import TopPlayers from '../components/competitions/TopPlayers';
+import CompetitionStats from '../components/competitions/CompetitionStats';
 import SeasonSelector from '../components/competitions/SeasonSelector';
 import Tabs from '../components/common/Tabs';
 import Breadcrumb from '../components/common/Breadcrumb';
 import Loader from '../components/common/Loader';
+
+// Helper: safely extract data from axios responses
+function extract(axiosRes) {
+  const outer = axiosRes?.data ?? axiosRes;
+  if (outer?.success !== undefined) return outer.data;
+  if (Array.isArray(outer)) return outer;
+  return outer;
+}
 
 export default function CompetitionDetailPage() {
   const { id } = useParams();
@@ -20,6 +28,7 @@ export default function CompetitionDetailPage() {
   const [selectedSeason, setSelectedSeason] = useState('');
   const [articles, setArticles] = useState([]);
   const [scorersData, setScorersData] = useState({ scorers: [], assists: [], redCards: [] });
+  const [allMatches, setAllMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -34,22 +43,23 @@ export default function CompetitionDetailPage() {
           competitionsApi.getNews(id, { limit: 10 }),
         ]);
 
-        if (cRes.status === 'fulfilled') setCompetition(cRes.value?.data || cRes.value);
+        if (cRes.status === 'fulfilled') {
+          setCompetition(extract(cRes.value));
+        }
 
         if (sRes.status === 'fulfilled') {
-          const s = sRes.value?.data || sRes.value || [];
+          const s = extract(sRes.value) || [];
           setSeasons(s);
-          // Auto-select current season or first available
           const current = s.find((x) => x.is_current);
           if (current) setSelectedSeason(current.id);
           else if (s.length) setSelectedSeason(s[0].id);
         }
 
         if (nRes.status === 'fulfilled') {
-          setArticles(nRes.value?.data || nRes.value || []);
+          setArticles(extract(nRes.value) || []);
         }
       } catch (err) {
-        console.error(err);
+        console.error('CompetitionDetailPage load error:', err);
       } finally {
         setLoading(false);
       }
@@ -57,31 +67,38 @@ export default function CompetitionDetailPage() {
     load();
   }, [id]);
 
-  // Load standings + scorers when season changes
+  // Load standings + scorers + all matches when season changes
   useEffect(() => {
     if (!selectedSeason) return;
 
     const load = async () => {
       try {
-        const [stRes, scRes] = await Promise.allSettled([
+        const [stRes, scRes, mRes] = await Promise.allSettled([
           standingsApi.getByCompetition(id, selectedSeason),
           competitionsApi.getScorers(id, { seasonId: selectedSeason }),
+          competitionsApi.getMatches(id, { seasonId: selectedSeason, limit: 500 }),
         ]);
 
         if (stRes.status === 'fulfilled') {
-          setStandings(stRes.value?.data || stRes.value || []);
+          setStandings(extract(stRes.value) || []);
         }
 
         if (scRes.status === 'fulfilled') {
-          const d = scRes.value?.data || scRes.value || {};
+          const d = extract(scRes.value) || {};
           setScorersData({
             scorers: d.scorers || [],
             assists: d.assists || [],
             redCards: d.redCards || [],
           });
         }
+
+        if (mRes.status === 'fulfilled') {
+          const payload = mRes.value?.data ?? mRes.value;
+          const matchData = payload?.success !== undefined ? payload.data : payload;
+          setAllMatches(Array.isArray(matchData) ? matchData : []);
+        }
       } catch (err) {
-        console.error(err);
+        console.error('Standings/scorers/matches load error:', err);
       }
     };
     load();
@@ -99,13 +116,12 @@ export default function CompetitionDetailPage() {
     { key: 'overview', label: 'Overview' },
     { key: 'matches', label: 'Matches' },
     { key: 'standings', label: 'Standings' },
-    { key: 'top-players', label: 'Top Players' },
+    { key: 'stats', label: 'Stats' },
   ];
 
   return (
     <div className="page-wrapper">
       <div className="container page-content">
-        {/* Breadcrumb */}
         <Breadcrumb
           items={[
             { label: 'Leagues', path: '/competitions' },
@@ -113,10 +129,8 @@ export default function CompetitionDetailPage() {
           ]}
         />
 
-        {/* Competition Header */}
         <CompetitionHeader competition={competition} />
 
-        {/* Tab Bar + Season Selector */}
         <div style={{
           marginTop: 'var(--space-xl)',
           display: 'flex',
@@ -135,7 +149,6 @@ export default function CompetitionDetailPage() {
           )}
         </div>
 
-        {/* Tab Content */}
         <div style={{ marginTop: 'var(--space-lg)' }}>
           {activeTab === 'overview' && (
             <CompetitionOverview
@@ -155,11 +168,13 @@ export default function CompetitionDetailPage() {
             <StandingsTable standings={standings} />
           )}
 
-          {activeTab === 'top-players' && (
-            <TopPlayers
+          {activeTab === 'stats' && (
+            <CompetitionStats
+              standings={standings}
               scorers={scorersData.scorers}
               assists={scorersData.assists}
               redCards={scorersData.redCards}
+              matches={allMatches}
             />
           )}
         </div>
