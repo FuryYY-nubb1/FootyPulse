@@ -39,8 +39,11 @@ app.use(express.urlencoded({ extended: true }));
 // ── 4. Request logging ──
 app.use(logger);
 
-// ── 5. Rate limiting (100 requests per 15 minutes per IP) ──
-app.use('/api', rateLimiter(100, 15 * 60 * 1000));
+// ── 5. Rate limiting ──
+// Development: 2000 req / 15 min (plenty of headroom for hot-reload + polling)
+// Production:  200  req / 15 min (reasonable for real users)
+const isDev = process.env.NODE_ENV === 'development';
+app.use('/api', rateLimiter(isDev ? 2000 : 200, 15 * 60 * 1000));
 
 // ── 6. Health check (no auth needed) ──
 app.get('/api/health', (req, res) => {
