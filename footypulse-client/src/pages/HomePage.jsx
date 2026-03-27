@@ -10,32 +10,50 @@ import ArticleCard from '../components/articles/ArticleCard';
 import TransferCard from '../components/transfers/TransferCard';
 import SearchBar from '../components/common/SearchBar';
 import Loader from '../components/common/Loader';
+import ErrorBanner from '../components/common/ErrorBanner';
 
 export default function HomePage() {
   const [matches, setMatches] = useState([]);
   const [articles, setArticles] = useState([]);
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [mRes, aRes, tRes] = await Promise.allSettled([
-          matchesApi.getByDate(new Date().toISOString().split('T')[0]),
-          articlesApi.getFeatured(),
-          transfersApi.getLatest(),
-        ]);
-        if (mRes.status === 'fulfilled') setMatches(mRes.value?.data || mRes.value || []);
-        if (aRes.status === 'fulfilled') setArticles(aRes.value?.data || aRes.value || []);
-        if (tRes.status === 'fulfilled') setTransfers(tRes.value?.data || tRes.value || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [mRes, aRes, tRes] = await Promise.allSettled([
+        matchesApi.getByDate(new Date().toISOString().split('T')[0]),
+        articlesApi.getFeatured(),
+        transfersApi.getLatest(),
+      ]);
+      if (mRes.status === 'fulfilled') setMatches(mRes.value?.data || mRes.value || []);
+      else console.error('Matches failed:', mRes.reason);
+
+      if (aRes.status === 'fulfilled') setArticles(aRes.value?.data || aRes.value || []);
+      else console.error('Articles failed:', aRes.reason);
+
+      if (tRes.status === 'fulfilled') setTransfers(tRes.value?.data || tRes.value || []);
+      else console.error('Transfers failed:', tRes.reason);
+
+      // If all 3 failed, show error
+      if (
+        mRes.status === 'rejected' &&
+        aRes.status === 'rejected' &&
+        tRes.status === 'rejected'
+      ) {
+        setError('Could not connect to the database. It may be waking up — please retry.');
       }
-    };
-    load();
-  }, []);
+    } catch (err) {
+      console.error(err);
+      setError('Something went wrong loading the page.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
 
   return (
     <div className="page-wrapper">
@@ -53,36 +71,38 @@ export default function HomePage() {
           transform: 'translateX(-50%)',
           pointerEvents: 'none',
         }} />
-        <div className="container" style={{ position: 'relative' }}>
-          <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
-            <h1 style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 'var(--fs-hero)',
-              fontWeight: 900,
-              lineHeight: 1.05,
-              marginBottom: 'var(--space-lg)',
-              letterSpacing: '-0.03em',
-            }}>
-              Feel the <span className="text-accent">Pulse</span> of Football
-            </h1>
-            <p style={{
-              fontSize: 'var(--fs-md)',
-              color: 'var(--text-secondary)',
-              marginBottom: 'var(--space-2xl)',
-              lineHeight: 1.6,
-              maxWidth: 500,
-              margin: '0 auto var(--space-2xl)',
-            }}>
-              Live scores, breaking transfers, in-depth stats, and the latest news — all in one place.
-            </p>
-            <SearchBar />
+        <div className="container" style={{ position: 'relative', textAlign: 'center' }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 'var(--space-xs)',
+            padding: '6px 16px', borderRadius: 'var(--radius-full)',
+            background: 'rgba(0,245,160,0.1)', border: '1px solid rgba(0,245,160,0.2)',
+            marginBottom: 'var(--space-lg)',
+          }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>
+              Live Football Hub
+            </span>
           </div>
+          <h1 style={{
+            fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900,
+            lineHeight: 1.1, marginBottom: 'var(--space-lg)',
+          }}>
+            The Pulse of <span style={{ color: 'var(--accent-primary)' }}>World Football</span>
+          </h1>
+          <p style={{
+            fontSize: 'var(--fs-lg)', color: 'var(--text-secondary)',
+            maxWidth: 560, margin: '0 auto var(--space-xl)',
+          }}>
+            Live scores, transfers, standings and news — all in one place.
+          </p>
+          <SearchBar />
         </div>
       </section>
 
       <div className="container page-content">
         {loading ? (
           <Loader text="Loading today's action..." />
+        ) : error ? (
+          <ErrorBanner message={error} onRetry={load} />
         ) : (
           <>
             {/* Live Matches */}
@@ -96,7 +116,10 @@ export default function HomePage() {
                 <h2 style={{ fontSize: 'var(--fs-xl)', fontWeight: 800 }}>Today's Matches</h2>
                 <Link to="/matches" style={{ fontSize: 'var(--fs-sm)', color: 'var(--accent-primary)', fontWeight: 600 }}>View All →</Link>
               </div>
-              <ScoreBoard matches={matches.slice(0, 6)} title="" />
+              {matches.length > 0
+                ? <ScoreBoard matches={matches.slice(0, 6)} title="" />
+                : <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--fs-sm)' }}>No matches today.</p>
+              }
             </section>
 
             {/* Featured Article + News */}
@@ -106,11 +129,11 @@ export default function HomePage() {
                   <h2 style={{ fontSize: 'var(--fs-xl)', fontWeight: 800 }}>Latest News</h2>
                   <Link to="/news" style={{ fontSize: 'var(--fs-sm)', color: 'var(--accent-primary)', fontWeight: 600 }}>All News →</Link>
                 </div>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: '2fr 1fr', 
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '2fr 1fr',
                   gap: 'var(--space-lg)',
-                  alignItems: 'stretch', // Added this to make both columns same height
+                  alignItems: 'stretch',
                 }}>
                   <ArticleFeatured article={articles[0]} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>

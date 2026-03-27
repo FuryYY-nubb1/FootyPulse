@@ -4,29 +4,32 @@ import TransferList from '../components/transfers/TransferList';
 import TransferTimeline from '../components/transfers/TransferTimeline';
 import Tabs from '../components/common/Tabs';
 import Pagination from '../components/common/Pagination';
+import ErrorBanner from '../components/common/ErrorBanner';
 
 export default function TransfersPage() {
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [viewMode, setViewMode] = useState('grid');
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const res = await transfersApi.getAll({ page, limit: 20 });
-        setTransfers(res?.data || res || []);
-        setTotalPages(res?.pagination?.totalPages || 1);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [page]);
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await transfersApi.getAll({ page, limit: 20 });
+      setTransfers(res?.data || res || []);
+      setTotalPages(res?.pagination?.totalPages || 1);
+    } catch (err) {
+      console.error(err);
+      setError('Could not load transfers. The database may be waking up.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [page]);
 
   return (
     <div className="page-wrapper">
@@ -39,12 +42,16 @@ export default function TransfersPage() {
             onChange={setViewMode}
           />
         </div>
-        {viewMode === 'grid' ? (
+
+        {error ? (
+          <ErrorBanner message={error} onRetry={load} />
+        ) : viewMode === 'grid' ? (
           <TransferList transfers={transfers} loading={loading} />
         ) : (
           <TransferTimeline transfers={transfers} />
         )}
-        <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+
+        {!error && <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />}
       </div>
     </div>
   );

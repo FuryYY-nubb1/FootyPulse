@@ -10,6 +10,7 @@ import StandingsTable from '../components/competitions/StandingsTable';
 import TeamFixtures from '../components/teams/TeamFixtures';
 import TeamTopPlayers from '../components/teams/TeamTopPlayers';
 import Loader from '../components/common/Loader';
+import ErrorBanner from '../components/common/ErrorBanner';
 
 function extract(axiosRes) {
   const outer = axiosRes?.data ?? axiosRes;
@@ -26,32 +27,35 @@ export default function TeamDetailPage() {
   const [articles, setArticles] = useState([]);
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [tRes, sRes, fRes, aRes] = await Promise.allSettled([
-          teamsApi.getById(id),
-          teamsApi.getSquad(id),
-          teamsApi.getFixtures(id),
-          articlesApi.getAll({ team_id: id, limit: 12 }),
-        ]);
-        if (tRes.status === 'fulfilled') setTeam(extract(tRes.value));
-        if (sRes.status === 'fulfilled') setSquad(extract(sRes.value) || []);
-        if (fRes.status === 'fulfilled') setFixtures(extract(fRes.value) || []);
-        if (aRes.status === 'fulfilled') setArticles(extract(aRes.value) || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [id]);
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [tRes, sRes, fRes, aRes] = await Promise.allSettled([
+        teamsApi.getById(id),
+        teamsApi.getSquad(id),
+        teamsApi.getFixtures(id),
+        articlesApi.getAll({ team_id: id, limit: 12 }),
+      ]);
+      if (tRes.status === 'fulfilled') setTeam(extract(tRes.value));
+      else setError('Could not load team data.');
 
-  // Fetch league standings when team loads
+      if (sRes.status === 'fulfilled') setSquad(extract(sRes.value) || []);
+      if (fRes.status === 'fulfilled') setFixtures(extract(fRes.value) || []);
+      if (aRes.status === 'fulfilled') setArticles(extract(aRes.value) || []);
+    } catch (err) {
+      console.error(err);
+      setError('Something went wrong loading team data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [id]);
+
   useEffect(() => {
     if (!team) return;
     const loadStandings = async () => {
@@ -71,6 +75,16 @@ export default function TeamDetailPage() {
   }, [team, id]);
 
   if (loading) return <div className="page-wrapper"><Loader text="Loading team..." /></div>;
+
+  if (error && !team) {
+    return (
+      <div className="page-wrapper">
+        <div className="container page-content">
+          <ErrorBanner message={error} onRetry={load} />
+        </div>
+      </div>
+    );
+  }
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
@@ -98,14 +112,11 @@ export default function TeamDetailPage() {
                 style={{
                   padding: 'var(--space-md) var(--space-xs)', border: 'none', cursor: 'pointer',
                   fontSize: 'var(--fs-sm)',
-                  fontWeight: activeTab === tab.key ? 700 : 500,
-                  color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  borderBottom: `3px solid ${activeTab === tab.key ? 'var(--accent-primary)' : 'transparent'}`,
-                  transition: 'all var(--transition-fast)', whiteSpace: 'nowrap',
-                  textTransform: 'capitalize', letterSpacing: '0.01em', background: 'transparent',
+                  fontWeight: activeTab === tab.key ? 700 : 400,
+                  color: activeTab === tab.key ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  borderBottom: activeTab === tab.key ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                  background: 'none', whiteSpace: 'nowrap',
                 }}
-                onMouseEnter={(e) => { if (activeTab !== tab.key) e.currentTarget.style.color = 'var(--text-primary)'; }}
-                onMouseLeave={(e) => { if (activeTab !== tab.key) e.currentTarget.style.color = 'var(--text-secondary)'; }}
               >
                 {tab.label}
               </button>
@@ -114,16 +125,12 @@ export default function TeamDetailPage() {
         </div>
       </div>
 
-      <div className="container" style={{ paddingTop: 'var(--space-xl)', paddingBottom: 'var(--space-2xl)' }}>
-        {activeTab === 'overview' && (
-          <TeamOverview teamId={id} teamName={team?.name} team={team} articles={articles} fixtures={fixtures} />
-        )}
-        {activeTab === 'matches' && <TeamFixtures matches={fixtures} />}
-        {activeTab === 'squad' && <TeamSquad players={squad} teamName={team?.name} />}
-        {activeTab === 'standings' && (
-          <StandingsTable standings={standings} highlightTeamId={id} />
-        )}
-        {activeTab === 'top-players' && <TeamTopPlayers players={squad} />}
+      <div className="container page-content">
+        {activeTab === 'overview' && <TeamOverview team={team} articles={articles} fixtures={fixtures} />}
+        {activeTab === 'matches' && <TeamFixtures teamId={id} fixtures={fixtures} />}
+        {activeTab === 'squad' && <TeamSquad squad={squad} />}
+        {activeTab === 'standings' && <StandingsTable standings={standings} highlightTeamId={parseInt(id)} />}
+        {activeTab === 'top-players' && <TeamTopPlayers teamId={id} squad={squad} />}
       </div>
     </div>
   );

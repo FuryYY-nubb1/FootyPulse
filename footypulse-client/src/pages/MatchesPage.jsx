@@ -3,6 +3,7 @@ import { matchesApi } from '../api/matchesApi';
 import MatchCard from '../components/matches/MatchCard';
 import Tabs from '../components/common/Tabs';
 import Loader from '../components/common/Loader';
+import ErrorBanner from '../components/common/ErrorBanner';
 import { formatDate } from '../utils/formatDate';
 
 function groupByMatchDate(matches) {
@@ -28,7 +29,6 @@ function groupByCompetition(matches) {
 
 function DateGroup({ dateKey, matches }) {
   const byComp = groupByCompetition(matches);
-
   return (
     <div style={{
       marginBottom: 'var(--space-lg)',
@@ -37,27 +37,20 @@ function DateGroup({ dateKey, matches }) {
       borderRadius: 'var(--radius-lg)',
       overflow: 'hidden',
     }}>
-      {/* Date Header */}
       <div style={{
         padding: '10px 24px',
         background: 'var(--bg-secondary)',
         borderBottom: '1px solid var(--border-subtle)',
       }}>
         <span style={{
-          fontSize: 'var(--fs-xs)',
-          fontWeight: 700,
-          color: 'var(--text-secondary)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
+          fontSize: 'var(--fs-xs)', fontWeight: 700,
+          color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em',
         }}>
           {formatDate(dateKey, 'long')}
         </span>
       </div>
-
-      {/* Competitions + Matches */}
       {Object.entries(byComp).map(([compName, compMatches], ci) => (
         <div key={compName}>
-          {/* Competition sub-header — WHITE text */}
           <div style={{
             padding: '5px 24px',
             borderBottom: '1px solid var(--border-subtle)',
@@ -65,16 +58,12 @@ function DateGroup({ dateKey, matches }) {
             background: 'rgba(255,255,255,0.02)',
           }}>
             <span style={{
-              fontSize: 'var(--fs-xs)',
-              fontWeight: 700,
-              color: 'var(--text-primary)',   /* white, not green */
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
+              fontSize: 'var(--fs-xs)', fontWeight: 700,
+              color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.08em',
             }}>
               {compName}
             </span>
           </div>
-
           {compMatches.map((match) => (
             <MatchCard key={match.match_id || match.id} match={match} />
           ))}
@@ -86,11 +75,9 @@ function DateGroup({ dateKey, matches }) {
 
 function MatchList({ matches, reverseDate = false }) {
   if (!matches.length) return null;
-
   const grouped = groupByMatchDate(matches);
   let sorted = Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
-  if (reverseDate) sorted = sorted.reverse();   // newest first for results
-
+  if (reverseDate) sorted = sorted.reverse();
   return (
     <div>
       {sorted.map(([dateKey, dateMatches]) => (
@@ -103,12 +90,9 @@ function MatchList({ matches, reverseDate = false }) {
 function EmptyState({ icon, message }) {
   return (
     <div style={{
-      textAlign: 'center',
-      padding: 'var(--space-3xl)',
-      color: 'var(--text-secondary)',
-      background: 'var(--bg-card)',
-      borderRadius: 'var(--radius-lg)',
-      border: '1px solid var(--border-subtle)',
+      textAlign: 'center', padding: 'var(--space-3xl)',
+      color: 'var(--text-secondary)', background: 'var(--bg-card)',
+      borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)',
     }}>
       <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-md)', opacity: 0.4 }}>{icon}</div>
       <p style={{ fontSize: 'var(--fs-sm)' }}>{message}</p>
@@ -121,50 +105,58 @@ export default function MatchesPage() {
   const [upcomingMatches, setUpcomingMatches] = useState([]);
   const [recentMatches, setRecentMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('upcoming');
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const today = new Date().toISOString().split('T')[0];
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const [liveRes, upcomingRes, recentRes] = await Promise.allSettled([
+        matchesApi.getLive(),
+        matchesApi.getAll({ status: 'scheduled', date_from: today, limit: 50 }),
+        matchesApi.getAll({ status: 'finished', limit: 50 }),
+      ]);
 
-      try {
-        const [liveRes, upcomingRes, recentRes] = await Promise.allSettled([
-          matchesApi.getLive(),
-          matchesApi.getAll({ status: 'scheduled', date_from: today, limit: 50 }),
-          matchesApi.getAll({ status: 'finished', limit: 50 }),
-        ]);
-
-        if (liveRes.status === 'fulfilled') {
-          const data = liveRes.value?.data || liveRes.value || [];
-          setLiveMatches(data);
-          if (data.length > 0) setActiveTab('live');
-        }
-
-        if (upcomingRes.status === 'fulfilled') {
-          const data = upcomingRes.value?.data || upcomingRes.value || [];
-          // Upcoming: earliest date first
-          setUpcomingMatches([...data].sort((a, b) => {
-            const d = (a.match_date || '').localeCompare(b.match_date || '');
-            return d !== 0 ? d : (a.kick_off_time || '').localeCompare(b.kick_off_time || '');
-          }));
-        }
-
-        if (recentRes.status === 'fulfilled') {
-          const data = recentRes.value?.data || recentRes.value || [];
-          // Results: latest date first — sorted here too, but DateGroup will also reverse
-          setRecentMatches([...data].sort((a, b) =>
-            (b.match_date || '').localeCompare(a.match_date || '')
-          ));
-        }
-      } catch (err) {
-        console.error('Failed to load matches:', err);
-      } finally {
-        setLoading(false);
+      if (liveRes.status === 'fulfilled') {
+        const data = liveRes.value?.data || liveRes.value || [];
+        setLiveMatches(data);
+        if (data.length > 0) setActiveTab('live');
       }
-    };
-    load();
-  }, []);
+
+      if (upcomingRes.status === 'fulfilled') {
+        const data = upcomingRes.value?.data || upcomingRes.value || [];
+        setUpcomingMatches([...data].sort((a, b) => {
+          const d = (a.match_date || '').localeCompare(b.match_date || '');
+          return d !== 0 ? d : (a.kick_off_time || '').localeCompare(b.kick_off_time || '');
+        }));
+      }
+
+      if (recentRes.status === 'fulfilled') {
+        const data = recentRes.value?.data || recentRes.value || [];
+        setRecentMatches([...data].sort((a, b) =>
+          (b.match_date || '').localeCompare(a.match_date || '')
+        ));
+      }
+
+      // All failed = DB is down
+      if (
+        liveRes.status === 'rejected' &&
+        upcomingRes.status === 'rejected' &&
+        recentRes.status === 'rejected'
+      ) {
+        setError('Could not load matches. The database may be waking up — please retry.');
+      }
+    } catch (err) {
+      console.error('Failed to load matches:', err);
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
 
   const tabs = [
     ...(liveMatches.length > 0
@@ -183,6 +175,8 @@ export default function MatchesPage() {
 
         {loading ? (
           <Loader text="Loading matches..." />
+        ) : error ? (
+          <ErrorBanner message={error} onRetry={load} />
         ) : (
           <>
             <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
@@ -192,13 +186,11 @@ export default function MatchesPage() {
                 ? <MatchList matches={liveMatches} />
                 : <EmptyState icon="📡" message="No live matches right now" />
             )}
-
             {activeTab === 'upcoming' && (
               upcomingMatches.length > 0
                 ? <MatchList matches={upcomingMatches} reverseDate={false} />
                 : <EmptyState icon="📅" message="No upcoming matches scheduled" />
             )}
-
             {activeTab === 'results' && (
               recentMatches.length > 0
                 ? <MatchList matches={recentMatches} reverseDate={true} />

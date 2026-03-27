@@ -5,14 +5,14 @@ import { standingsApi } from '../api/standingsApi';
 import CompetitionHeader from '../components/competitions/CompetitionHeader';
 import CompetitionOverview from '../components/competitions/CompetitionOverview';
 import CompetitionMatches from '../components/competitions/CompetitionMatches';
-import StandingsTable from '../components/competitions/StandingsTable';
 import CompetitionStats from '../components/competitions/CompetitionStats';
+import StandingsTable from '../components/competitions/StandingsTable';
 import SeasonSelector from '../components/competitions/SeasonSelector';
 import Tabs from '../components/common/Tabs';
 import Breadcrumb from '../components/common/Breadcrumb';
 import Loader from '../components/common/Loader';
+import ErrorBanner from '../components/common/ErrorBanner';
 
-// Helper: safely extract data from axios responses
 function extract(axiosRes) {
   const outer = axiosRes?.data ?? axiosRes;
   if (outer?.success !== undefined) return outer.data;
@@ -30,48 +30,44 @@ export default function CompetitionDetailPage() {
   const [scorersData, setScorersData] = useState({ scorers: [], assists: [], redCards: [] });
   const [allMatches, setAllMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Load competition info + seasons + news on mount
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [cRes, sRes, nRes] = await Promise.allSettled([
-          competitionsApi.getById(id),
-          competitionsApi.getSeasons(id),
-          competitionsApi.getNews(id, { limit: 10 }),
-        ]);
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [cRes, sRes, nRes] = await Promise.allSettled([
+        competitionsApi.getById(id),
+        competitionsApi.getSeasons(id),
+        competitionsApi.getNews(id, { limit: 10 }),
+      ]);
 
-        if (cRes.status === 'fulfilled') {
-          setCompetition(extract(cRes.value));
-        }
+      if (cRes.status === 'fulfilled') setCompetition(extract(cRes.value));
+      else setError('Could not load competition data.');
 
-        if (sRes.status === 'fulfilled') {
-          const s = extract(sRes.value) || [];
-          setSeasons(s);
-          const current = s.find((x) => x.is_current);
-          if (current) setSelectedSeason(current.id);
-          else if (s.length) setSelectedSeason(s[0].id);
-        }
-
-        if (nRes.status === 'fulfilled') {
-          setArticles(extract(nRes.value) || []);
-        }
-      } catch (err) {
-        console.error('CompetitionDetailPage load error:', err);
-      } finally {
-        setLoading(false);
+      if (sRes.status === 'fulfilled') {
+        const s = extract(sRes.value) || [];
+        setSeasons(s);
+        const current = s.find((x) => x.is_current);
+        if (current) setSelectedSeason(current.id);
+        else if (s.length) setSelectedSeason(s[0].id);
       }
-    };
-    load();
-  }, [id]);
 
-  // Load standings + scorers + all matches when season changes
+      if (nRes.status === 'fulfilled') setArticles(extract(nRes.value) || []);
+    } catch (err) {
+      console.error('CompetitionDetailPage load error:', err);
+      setError('Something went wrong loading this competition.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [id]);
+
   useEffect(() => {
     if (!selectedSeason) return;
-
-    const load = async () => {
+    const loadSeason = async () => {
       try {
         const [stRes, scRes, mRes] = await Promise.allSettled([
           standingsApi.getByCompetition(id, selectedSeason),
@@ -79,9 +75,7 @@ export default function CompetitionDetailPage() {
           competitionsApi.getMatches(id, { seasonId: selectedSeason, limit: 500 }),
         ]);
 
-        if (stRes.status === 'fulfilled') {
-          setStandings(extract(stRes.value) || []);
-        }
+        if (stRes.status === 'fulfilled') setStandings(extract(stRes.value) || []);
 
         if (scRes.status === 'fulfilled') {
           const d = extract(scRes.value) || {};
@@ -101,13 +95,17 @@ export default function CompetitionDetailPage() {
         console.error('Standings/scorers/matches load error:', err);
       }
     };
-    load();
+    loadSeason();
   }, [id, selectedSeason]);
 
-  if (loading) {
+  if (loading) return <div className="page-wrapper"><Loader text="Loading competition..." /></div>;
+
+  if (error && !competition) {
     return (
       <div className="page-wrapper">
-        <Loader text="Loading competition..." />
+        <div className="container page-content">
+          <ErrorBanner message={error} onRetry={load} />
+        </div>
       </div>
     );
   }
@@ -122,12 +120,10 @@ export default function CompetitionDetailPage() {
   return (
     <div className="page-wrapper">
       <div className="container page-content">
-        <Breadcrumb
-          items={[
-            { label: 'Leagues', path: '/competitions' },
-            { label: competition?.name || 'Competition' },
-          ]}
-        />
+        <Breadcrumb items={[
+          { label: 'Leagues', path: '/competitions' },
+          { label: competition?.name || 'Competition' },
+        ]} />
 
         <CompetitionHeader competition={competition} />
 
@@ -151,23 +147,14 @@ export default function CompetitionDetailPage() {
 
         <div style={{ marginTop: 'var(--space-lg)' }}>
           {activeTab === 'overview' && (
-            <CompetitionOverview
-              articles={articles}
-              competitionName={competition?.name || ''}
-            />
+            <CompetitionOverview articles={articles} competitionName={competition?.name || ''} />
           )}
-
           {activeTab === 'matches' && (
-            <CompetitionMatches
-              competitionId={id}
-              seasonId={selectedSeason}
-            />
+            <CompetitionMatches competitionId={id} seasonId={selectedSeason} />
           )}
-
           {activeTab === 'standings' && (
             <StandingsTable standings={standings} />
           )}
-
           {activeTab === 'stats' && (
             <CompetitionStats
               standings={standings}
