@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
-  timeout: 30000, // increased from 15s → 30s to allow for Neon cold starts
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -26,33 +26,13 @@ api.interceptors.response.use(
   (error) => {
     if (error.response) {
       const { status, data } = error.response;
-
       if (status === 401) {
         localStorage.removeItem('fp_token');
         localStorage.removeItem('fp_user');
         window.location.href = '/login';
       }
-
-      if (status === 429) {
-        return Promise.reject({
-          status: 429,
-          message: 'Too many requests — please slow down and try again in a moment.',
-        });
-      }
-
-      return Promise.reject({
-        status,
-        message: data?.message || 'Something went wrong',
-      });
+      return Promise.reject({ status, message: data?.message || 'Something went wrong' });
     }
-
-    // Network timeout
-    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      return Promise.reject({
-        message: 'Request timed out. The database may be waking up — please retry.',
-      });
-    }
-
     return Promise.reject({ message: 'Network error. Please try again.' });
   }
 );
