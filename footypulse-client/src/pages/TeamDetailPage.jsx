@@ -128,7 +128,7 @@ export default function TeamDetailPage() {
       <div className="container page-content">
         {activeTab === 'overview' && <TeamOverview team={team} articles={articles} fixtures={fixtures} />}
         {activeTab === 'matches' && <TeamFixtures teamId={id} fixtures={fixtures} />}
-        {activeTab === 'squad' && <TeamSquad players={squad} teamName={team?.name} />}
+        {activeTab === 'squad' && <TeamSquad squad={squad} />}
         {activeTab === 'standings' && <StandingsTable standings={standings} highlightTeamId={parseInt(id)} />}
         {activeTab === 'top-players' && <TeamTopPlayers teamId={id} squad={squad} />}
       </div>

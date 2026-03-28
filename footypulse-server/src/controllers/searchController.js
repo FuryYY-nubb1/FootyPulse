@@ -49,9 +49,9 @@ exports.search = asyncHandler(async (req, res) => {
 
   if (type === 'all' || type === 'articles') {
     const articles = await db.query(
-      `SELECT article_id, title, slug, excerpt, article_type, created_at, published_at, 'article' AS result_type
-        FROM articles WHERE status = 'published'
-        AND (title ILIKE $1 OR excerpt ILIKE $1) LIMIT $2`,
+      `SELECT article_id, title, slug, excerpt, article_type, 'article' AS result_type
+       FROM articles WHERE status = 'published'
+       AND (title ILIKE $1 OR excerpt ILIKE $1) LIMIT $2`,
       [searchTerm, limit]
     );
     results.articles = articles.rows;
