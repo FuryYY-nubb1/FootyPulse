@@ -1,9 +1,3 @@
-// ============================================
-// src/controllers/searchController.js
-// ============================================
-// PURPOSE: Global search across teams, persons, competitions, articles
-// ROUTES: GET /api/v1/search?q=messi&type=all
-// ============================================
 
 const db = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');

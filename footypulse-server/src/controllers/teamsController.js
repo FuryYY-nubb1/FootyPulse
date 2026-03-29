@@ -1,8 +1,3 @@
-// ============================================
-// src/controllers/teamsController.js
-// ============================================
-// FIXED: Added getMatches, getTransfers, getStats handlers
-// ============================================
 
 const TeamModel = require('../models/teamModel');
 const asyncHandler = require('../utils/asyncHandler');
@@ -35,20 +30,17 @@ exports.getSquad = asyncHandler(async (req, res) => {
   res.json({ success: true, data: squad });
 });
 
-// ── GET /teams/:id/matches ──
-// Returns all matches (home or away) for this team
+
 exports.getMatches = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status, limit: queryLimit } = req.query;
   const limitVal = parseInt(queryLimit) || 50;
 
   let query = `
-    SELECT m.*,
-           ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
-           at2.name AS away_team_name, at2.short_name AS away_short, at2.logo_url AS away_logo,
-           s.name AS season_name,
-           comp.name AS competition_name, comp.short_name AS competition_short, comp.logo_url AS competition_logo,
-           st.name AS stadium_name
+    SELECT m.*, ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
+    at2.name AS away_team_name, at2.short_name AS away_short, at2.logo_url AS away_logo,
+    s.name AS season_name,comp.name AS competition_name, comp.short_name AS competition_short, comp.logo_url AS competition_logo,
+    st.name AS stadium_name
     FROM matches m
     JOIN teams ht ON m.home_team_id = ht.team_id
     JOIN teams at2 ON m.away_team_id = at2.team_id
@@ -72,8 +64,7 @@ exports.getMatches = asyncHandler(async (req, res) => {
   res.json({ success: true, data: result.rows });
 });
 
-// ── GET /teams/:id/transfers ──
-// Returns all transfers involving this team (from or to)
+
 exports.getTransfers = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { limit: queryLimit } = req.query;
@@ -81,9 +72,7 @@ exports.getTransfers = asyncHandler(async (req, res) => {
 
   const result = await db.query(
     `SELECT tr.*,
-            p.display_name AS player_name, p.photo_url AS player_photo, p.primary_position,
-            ft.name AS from_team_name, ft.logo_url AS from_team_logo,
-            tt.name AS to_team_name, tt.logo_url AS to_team_logo
+    p.display_name AS player_name, p.photo_url AS player_photo, p.primary_position,ft.name AS from_team_name, ft.logo_url AS from_team_logo,tt.name AS to_team_name, tt.logo_url AS to_team_logo
      FROM transfers tr
      JOIN persons p ON tr.person_id = p.person_id
      LEFT JOIN teams ft ON tr.from_team_id = ft.team_id

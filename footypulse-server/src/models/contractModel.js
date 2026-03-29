@@ -4,8 +4,7 @@ const db = require('../config/db');
 const ContractModel = {
   async getAll(limit = 20, offset = 0, filters = {}) {
     let query = `
-      SELECT c.*, p.display_name AS person_name, p.person_type,
-             t.name AS team_name, pt.name AS parent_club_name
+      SELECT c.*, p.display_name AS person_name, p.person_type,t.name AS team_name, pt.name AS parent_club_name
       FROM contracts c
       JOIN persons p ON c.person_id = p.person_id
       JOIN teams t ON c.team_id = t.team_id

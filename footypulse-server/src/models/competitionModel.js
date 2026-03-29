@@ -53,10 +53,9 @@ const CompetitionModel = {
   async update(id, fields) {
     const result = await db.query(
       `UPDATE competitions
-       SET name = COALESCE($1, name), short_name = COALESCE($2, short_name),
-           competition_type = COALESCE($3, competition_type), country_id = COALESCE($4, country_id),
-           level = COALESCE($5, level), season_format = COALESCE($6, season_format),
-           logo_url = COALESCE($7, logo_url)
+       SET name = COALESCE($1, name), short_name = COALESCE($2, short_name),competition_type = COALESCE($3, competition_type), country_id = COALESCE($4, country_id),
+      level = COALESCE($5, level), season_format = COALESCE($6, season_format),
+      logo_url = COALESCE($7, logo_url)
        WHERE competition_id = $8 RETURNING *`,
       [fields.name, fields.short_name, fields.competition_type, fields.country_id,
        fields.level, fields.season_format, fields.logo_url, id]

@@ -1,6 +1,3 @@
-// ============================================
-// src/controllers/stadiumsController.js
-// ============================================
 
 const StadiumModel = require('../models/stadiumModel');
 const asyncHandler = require('../utils/asyncHandler');

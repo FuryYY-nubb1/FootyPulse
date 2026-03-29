@@ -1,6 +1,4 @@
-// ============================================
-// src/controllers/matchPlayersController.js
-// ============================================
+
 
 const MatchPlayerModel = require('../models/matchPlayerModel');
 const asyncHandler = require('../utils/asyncHandler');

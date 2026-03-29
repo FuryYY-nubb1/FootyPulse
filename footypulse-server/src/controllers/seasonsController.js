@@ -1,6 +1,4 @@
-// ============================================
-// src/controllers/seasonsController.js
-// ============================================
+
 
 const SeasonModel = require('../models/seasonModel');
 const asyncHandler = require('../utils/asyncHandler');

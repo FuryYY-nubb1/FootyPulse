@@ -75,14 +75,10 @@ const ArticleModel = {
   async update(id, fields) {
     const result = await db.query(
       `UPDATE articles
-       SET title = COALESCE($1, title), subtitle = COALESCE($2, subtitle),
-           excerpt = COALESCE($3, excerpt), content = COALESCE($4, content),
-           article_type = COALESCE($5, article_type), media = COALESCE($6, media),
-           published_at = COALESCE($7, published_at), status = COALESCE($8, status),
-           is_featured = COALESCE($9, is_featured), is_breaking = COALESCE($10, is_breaking),
-           tags = COALESCE($11, tags), team_id = COALESCE($12, team_id),
-           competition_id = COALESCE($13, competition_id), person_id = COALESCE($14, person_id),
-           match_id = COALESCE($15, match_id), meta_description = COALESCE($16, meta_description)
+       SET title = COALESCE($1, title), subtitle = COALESCE($2, subtitle), excerpt = COALESCE($3, excerpt), content = COALESCE($4, content),article_type = COALESCE($5, article_type), media = COALESCE($6, media),
+       published_at = COALESCE($7, published_at), status = COALESCE($8, status),
+      is_featured = COALESCE($9, is_featured), is_breaking = COALESCE($10, is_breaking),
+      tags = COALESCE($11, tags), team_id = COALESCE($12, team_id),competition_id = COALESCE($13, competition_id), person_id = COALESCE($14, person_id),match_id = COALESCE($15, match_id), meta_description = COALESCE($16, meta_description)
        WHERE article_id = $17 RETURNING *`,
       [fields.title, fields.subtitle, fields.excerpt, fields.content,
        fields.article_type, fields.media ? JSON.stringify(fields.media) : undefined,

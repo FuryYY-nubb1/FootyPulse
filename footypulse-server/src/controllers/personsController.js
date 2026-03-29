@@ -1,6 +1,4 @@
-// ============================================
-// src/controllers/personsController.js
-// ============================================
+
 
 const PersonModel = require('../models/personModel');
 const db = require('../config/db');

@@ -1,10 +1,4 @@
-// ============================================
-// src/controllers/competitionsController.js
-// ============================================
-// FIXED: getNews query — uses correct schema column names
-//        (media, view_count, author_name) and also finds
-//        articles linked via teams in the competition
-// ============================================
+
 
 const CompetitionModel = require('../models/competitionModel');
 const asyncHandler = require('../utils/asyncHandler');

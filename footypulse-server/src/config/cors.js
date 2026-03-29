@@ -1,9 +1,4 @@
-// ============================================
-// src/config/cors.js
-// ============================================
-// PURPOSE: Configures which origins can access our API
-// USED BY: src/app.js (applied as global middleware)
-// ============================================
+
 
 const config = require('./env');
 

@@ -1,6 +1,4 @@
-// ============================================
-// src/controllers/contractsController.js
-// ============================================
+
 
 const ContractModel = require('../models/contractModel');
 const asyncHandler = require('../utils/asyncHandler');

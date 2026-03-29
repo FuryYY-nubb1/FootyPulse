@@ -1,9 +1,3 @@
-// ============================================
-// src/controllers/countriesController.js
-// ============================================
-// MODEL: src/models/countryModel.js
-// ROUTES: src/routes/countriesRoutes.js
-// ============================================
 
 const CountryModel = require('../models/countryModel');
 const asyncHandler = require('../utils/asyncHandler');

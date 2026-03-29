@@ -1,6 +1,4 @@
-// ============================================
-// src/controllers/pollVotesController.js
-// ============================================
+
 
 const PollVoteModel = require('../models/pollVoteModel');
 const asyncHandler = require('../utils/asyncHandler');

@@ -3,10 +3,9 @@ const db = require('../config/db');
 
 const CommentModel = {
   async getByArticle(articleId, limit = 50, offset = 0) {
-    // Get top-level comments with reply count
     const result = await db.query(
       `SELECT c.*,
-              (SELECT COUNT(*) FROM comments r WHERE r.parent_id = c.comment_id AND r.status = 'approved') AS reply_count
+      (SELECT COUNT(*) FROM comments r WHERE r.parent_id = c.comment_id AND r.status = 'approved') AS reply_count
        FROM comments c
        WHERE c.article_id = $1 AND c.parent_id IS NULL AND c.status = 'approved'
        ORDER BY c.created_at DESC
@@ -38,7 +37,6 @@ const CommentModel = {
       [fields.article_id, fields.parent_id, fields.user_id, fields.user_name,
        fields.content, fields.status || 'approved']
     );
-    // Update article comment count
     await db.query(
       'UPDATE articles SET comment_count = comment_count + 1 WHERE article_id = $1',
       [fields.article_id]
@@ -57,7 +55,6 @@ const CommentModel = {
   },
 
   async delete(id) {
-    // Get article_id before deleting for count update
     const comment = await db.query('SELECT article_id FROM comments WHERE comment_id = $1', [id]);
     const result = await db.query('DELETE FROM comments WHERE comment_id = $1 RETURNING *', [id]);
     if (result.rows[0] && comment.rows[0]) {

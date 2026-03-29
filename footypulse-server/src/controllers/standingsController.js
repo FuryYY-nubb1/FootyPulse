@@ -1,27 +1,18 @@
-// ============================================
-// src/controllers/standingsController.js
-// ============================================
-// FIXED: Added getByQuery to handle frontend calls:
-//        GET /standings?competitionId=1&seasonId=1
-// ============================================
 
 const StandingModel = require('../models/standingModel');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const db = require('../config/db');
 
-// ── GET /standings?competitionId=1&seasonId=1 ──
-// This is what the frontend actually calls from standingsApi.getByCompetition()
 exports.getByQuery = asyncHandler(async (req, res) => {
   const { competitionId, seasonId, group } = req.query;
 
-  // If seasonId is provided directly, use it
+
   if (seasonId) {
     const standings = await StandingModel.getBySeason(seasonId, group || null);
     return res.json({ success: true, data: standings });
   }
 
-  // If only competitionId, find the current season and get standings
   if (competitionId) {
     const seasonResult = await db.query(
       `SELECT season_id FROM seasons

@@ -1,6 +1,4 @@
-// ============================================
-// src/controllers/transfersController.js
-// ============================================
+
 
 const TransferModel = require('../models/transferModel');
 const asyncHandler = require('../utils/asyncHandler');

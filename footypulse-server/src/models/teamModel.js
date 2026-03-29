@@ -37,8 +37,7 @@ const TeamModel = {
 
   async getById(id) {
     const result = await db.query(
-      `SELECT t.*, c.name AS country_name, c.code AS country_code,
-              s.name AS stadium_name, s.capacity AS stadium_capacity
+      `SELECT t.*, c.name AS country_name, c.code AS country_code,s.name AS stadium_name, s.capacity AS stadium_capacity
        FROM teams t
        JOIN countries c ON t.country_id = c.country_id
        LEFT JOIN stadiums s ON t.stadium_id = s.stadium_id
@@ -50,8 +49,7 @@ const TeamModel = {
 
   async create(fields) {
     const result = await db.query(
-      `INSERT INTO teams (name, short_name, team_type, country_id, city, stadium_id,
-                          founded_year, logo_url, primary_color, national_team_level, fifa_ranking)
+      `INSERT INTO teams (name, short_name, team_type, country_id, city, stadium_id,founded_year, logo_url, primary_color, national_team_level, fifa_ranking)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [fields.name, fields.short_name, fields.team_type, fields.country_id,
        fields.city, fields.stadium_id, fields.founded_year, fields.logo_url,
@@ -64,12 +62,12 @@ const TeamModel = {
     const result = await db.query(
       `UPDATE teams
        SET name = COALESCE($1, name), short_name = COALESCE($2, short_name),
-           team_type = COALESCE($3, team_type), country_id = COALESCE($4, country_id),
-           city = COALESCE($5, city), stadium_id = COALESCE($6, stadium_id),
-           founded_year = COALESCE($7, founded_year), logo_url = COALESCE($8, logo_url),
-           primary_color = COALESCE($9, primary_color),
-           national_team_level = COALESCE($10, national_team_level),
-           fifa_ranking = COALESCE($11, fifa_ranking)
+      team_type = COALESCE($3, team_type), country_id = COALESCE($4, country_id),
+      city = COALESCE($5, city), stadium_id = COALESCE($6, stadium_id),
+    founded_year = COALESCE($7, founded_year), logo_url = COALESCE($8, logo_url),
+      primary_color = COALESCE($9, primary_color),
+       national_team_level = COALESCE($10, national_team_level),
+      fifa_ranking = COALESCE($11, fifa_ranking)
        WHERE team_id = $12 RETURNING *`,
       [fields.name, fields.short_name, fields.team_type, fields.country_id,
        fields.city, fields.stadium_id, fields.founded_year, fields.logo_url,

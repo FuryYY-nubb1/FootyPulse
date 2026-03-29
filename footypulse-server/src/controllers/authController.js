@@ -7,7 +7,7 @@ const config = require('../config/env');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 
-// Generate JWT token
+
 const generateToken = (user) => {
   return jwt.sign(
     { user_id: user.user_id, email: user.email, role: user.role },
@@ -16,15 +16,6 @@ const generateToken = (user) => {
   );
 };
 
-// NOTE: You'll need to create a users table for this to work:
-// CREATE TABLE users (
-//   user_id SERIAL PRIMARY KEY,
-//   email VARCHAR(255) UNIQUE NOT NULL,
-//   password_hash VARCHAR(255) NOT NULL,
-//   name VARCHAR(100) NOT NULL,
-//   role VARCHAR(10) DEFAULT 'user' CHECK (role IN ('user', 'admin', 'editor')),
-//   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-// );
 
 exports.register = asyncHandler(async (req, res) => {
   const { email, password, name } = req.body;

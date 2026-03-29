@@ -1,6 +1,4 @@
-// ============================================
-// src/controllers/pollsController.js
-// ============================================
+
 
 const PollModel = require('../models/pollModel');
 const PollVoteModel = require('../models/pollVoteModel');

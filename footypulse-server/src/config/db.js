@@ -13,7 +13,7 @@ const pool = new Pool({
   connectionString: config.databaseUrl,
 });
 
-// Test connection on startup
+
 pool.on('error', (err) => {
   console.error(' Unexpected Neon DB error:', err);
   process.exit(-1);
@@ -25,7 +25,6 @@ const query = async (text, params) => {
   const result = await pool.query(text, params);
   const duration = Date.now() - start;
 
-  // Log slow queries in development
   if (config.nodeEnv === 'development' && duration > 100) {
     console.log(`  Slow query (${duration}ms):`, text);
   }
@@ -35,7 +34,7 @@ const query = async (text, params) => {
 
 const getClient = () => pool.connect();
 
-// Test the connection
+
 const testConnection = async () => {
   try {
     const result = await pool.query('SELECT NOW()');
