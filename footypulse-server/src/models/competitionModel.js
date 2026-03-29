@@ -1,9 +1,3 @@
-// ============================================
-// src/models/competitionModel.js
-// ============================================
-// TABLE: competitions → references: countries
-// USED BY: src/controllers/competitionsController.js
-// ============================================
 
 const db = require('../config/db');
 

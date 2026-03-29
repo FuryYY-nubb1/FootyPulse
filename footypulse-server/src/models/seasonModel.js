@@ -1,9 +1,4 @@
 
-// src/models/seasonModel.js
-// TABLE: seasons → references: competitions
-// USED BY: src/controllers/seasonsController.js
-
-
 const db = require('../config/db');
 
 const SeasonModel = {

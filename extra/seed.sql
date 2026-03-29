@@ -1,9 +1,6 @@
--- ============================================
--- FOOTYPULSE DATABASE SEED DATA
--- Run this after schema.sql to populate the database
--- ============================================
 
--- Clear existing data (in reverse order of dependencies)
+
+-- clear existing data (in reverse order of dependencies)
 TRUNCATE TABLE poll_votes CASCADE;
 TRUNCATE TABLE polls CASCADE;
 TRUNCATE TABLE comments CASCADE;
@@ -43,9 +40,7 @@ ALTER SEQUENCE comments_comment_id_seq RESTART WITH 1;
 ALTER SEQUENCE polls_poll_id_seq RESTART WITH 1;
 ALTER SEQUENCE poll_votes_vote_id_seq RESTART WITH 1;
 
--- ============================================
--- 1. USERS
--- ============================================
+
 INSERT INTO users (email, password_hash, name, role) VALUES
 ('admin@footypulse.com', '$2b$10$abcdefghijklmnopqrstuv', 'Admin User', 'admin'),
 ('editor@footypulse.com', '$2b$10$abcdefghijklmnopqrstuv', 'John Editor', 'editor'),

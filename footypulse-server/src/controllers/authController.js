@@ -1,12 +1,4 @@
-// ============================================
-// src/controllers/authController.js
-// ============================================
-// PURPOSE: Handles user registration and login
-// CONNECTED TO: src/routes/authRoutes.js
-//
-// NOTE: This is a simplified auth system. For production, you'd want
-//       a dedicated users table. This creates JWT tokens for API access.
-// ============================================
+
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');

@@ -1,6 +1,3 @@
-// ============================================
-// src/routes/commentsRoutes.js
-// ============================================
 
 const router = require('express').Router();
 const controller = require('../controllers/commentsController');

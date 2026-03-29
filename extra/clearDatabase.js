@@ -1,13 +1,4 @@
-// ============================================
-// database/clearDatabase.js
-// ============================================
-// PURPOSE: Truncate ALL 17 tables (preserve schema, remove data)
-//          Uses CASCADE to handle foreign key constraints
-//
-// USAGE:   node database/clearDatabase.js
-//
-// WARNING: This DELETES all data! Schema (tables) stays intact.
-// ============================================
+
 
 require('dotenv').config();
 const { Pool } = require('@neondatabase/serverless');
@@ -68,9 +59,9 @@ async function clearDatabase() {
     for (const table of TABLES) {
       try {
         await client.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
-        console.log(`    ✅ ${table}`);
+        console.log(`     ${table}`);
       } catch (err) {
-        console.log(`    ❌ ${table}: ${err.message}`);
+        console.log(`     ${table}: ${err.message}`);
       }
     }
 

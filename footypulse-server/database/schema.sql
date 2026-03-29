@@ -1,8 +1,4 @@
 
--- FOOTYPULSE DATABASE SCHEMA
--- Run this in your Neon DB SQL editor or via: npm run db:schema
-
--- Users table (for authentication - not in original schema but needed for auth)
 CREATE TABLE IF NOT EXISTS users (
     user_id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -12,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 1. countries
+-- countries
 CREATE TABLE IF NOT EXISTS countries (
     country_id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -21,7 +17,7 @@ CREATE TABLE IF NOT EXISTS countries (
     confederation VARCHAR(20) CHECK (confederation IN ('UEFA', 'CONMEBOL', 'CONCACAF', 'CAF', 'AFC', 'OFC'))
 );
 
--- 2. stadiums
+--  stadiums
 CREATE TABLE IF NOT EXISTS stadiums (
     stadium_id SERIAL PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -32,7 +28,7 @@ CREATE TABLE IF NOT EXISTS stadiums (
     surface_type VARCHAR(50)
 );
 
--- 3. teams
+--  teams
 CREATE TABLE IF NOT EXISTS teams (
     team_id SERIAL PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -47,12 +43,11 @@ CREATE TABLE IF NOT EXISTS teams (
     national_team_level VARCHAR(15) CHECK (national_team_level IN ('senior_men', 'senior_women', 'u21', 'u19', 'u17')),
     fifa_ranking INT,
     CONSTRAINT chk_national_level CHECK (
-        (team_type = 'national' AND national_team_level IS NOT NULL) OR
-        (team_type = 'club' AND national_team_level IS NULL)
+    (team_type = 'national' AND national_team_level IS NOT NULL) OR(team_type = 'club' AND national_team_level IS NULL)
     )
 );
 
--- 4. competitions
+--  competitions
 CREATE TABLE IF NOT EXISTS competitions (
     competition_id SERIAL PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -64,7 +59,7 @@ CREATE TABLE IF NOT EXISTS competitions (
     logo_url VARCHAR(255)
 );
 
--- 5. seasons
+-- seasons
 CREATE TABLE IF NOT EXISTS seasons (
     season_id SERIAL PRIMARY KEY,
     competition_id INT NOT NULL REFERENCES competitions(competition_id),
@@ -76,7 +71,7 @@ CREATE TABLE IF NOT EXISTS seasons (
     UNIQUE(competition_id, name)
 );
 
--- 6. persons
+-- persons
 CREATE TABLE IF NOT EXISTS persons (
     person_id SERIAL PRIMARY KEY,
     person_type VARCHAR(10) NOT NULL CHECK (person_type IN ('player', 'manager', 'referee')),
@@ -93,7 +88,7 @@ CREATE TABLE IF NOT EXISTS persons (
     preferred_formation VARCHAR(10)
 );
 
--- 7. contracts
+-- contracts
 CREATE TABLE IF NOT EXISTS contracts (
     contract_id SERIAL PRIMARY KEY,
     person_id INT NOT NULL REFERENCES persons(person_id),
@@ -114,7 +109,7 @@ CREATE TABLE IF NOT EXISTS contracts (
     )
 );
 
--- 8. matches
+-- matches
 CREATE TABLE IF NOT EXISTS matches (
     match_id SERIAL PRIMARY KEY,
     season_id INT NOT NULL REFERENCES seasons(season_id),
@@ -131,8 +126,7 @@ CREATE TABLE IF NOT EXISTS matches (
     kick_off_time TIME,
     stadium_id INT REFERENCES stadiums(stadium_id),
     referee_id INT REFERENCES persons(person_id),
-    status VARCHAR(12) NOT NULL DEFAULT 'scheduled'
-        CHECK (status IN ('scheduled', 'live', 'finished', 'postponed', 'cancelled')),
+    status VARCHAR(12) NOT NULL DEFAULT 'scheduled'CHECK (status IN ('scheduled', 'live', 'finished', 'postponed', 'cancelled')),
     attendance INT,
     home_formation VARCHAR(10),
     away_formation VARCHAR(10),
@@ -141,7 +135,7 @@ CREATE TABLE IF NOT EXISTS matches (
     CONSTRAINT chk_different_teams CHECK (home_team_id != away_team_id)
 );
 
--- 9. match_players
+--  match_players
 CREATE TABLE IF NOT EXISTS match_players (
     match_player_id SERIAL PRIMARY KEY,
     match_id INT NOT NULL REFERENCES matches(match_id) ON DELETE CASCADE,
@@ -156,13 +150,12 @@ CREATE TABLE IF NOT EXISTS match_players (
     UNIQUE(match_id, person_id)
 );
 
--- 10. match_events
+--  match_events
 CREATE TABLE IF NOT EXISTS match_events (
     event_id SERIAL PRIMARY KEY,
     match_id INT NOT NULL REFERENCES matches(match_id) ON DELETE CASCADE,
     event_type VARCHAR(15) NOT NULL
-        CHECK (event_type IN ('goal', 'own_goal', 'penalty', 'penalty_miss',
-                              'yellow', 'red', 'second_yellow', 'var', 'sub')),
+    CHECK (event_type IN ('goal', 'own_goal', 'penalty', 'penalty_miss','yellow', 'red', 'second_yellow', 'var', 'sub')),
     team_id INT NOT NULL REFERENCES teams(team_id),
     person_id INT REFERENCES persons(person_id),
     related_person_id INT REFERENCES persons(person_id),
@@ -171,7 +164,7 @@ CREATE TABLE IF NOT EXISTS match_events (
     description VARCHAR(200)
 );
 
--- 11. standings
+-- standings
 CREATE TABLE IF NOT EXISTS standings (
     standing_id SERIAL PRIMARY KEY,
     season_id INT NOT NULL REFERENCES seasons(season_id),
@@ -190,7 +183,7 @@ CREATE TABLE IF NOT EXISTS standings (
     UNIQUE(season_id, group_name, team_id)
 );
 
--- 12. transfers
+-- transfers
 CREATE TABLE IF NOT EXISTS transfers (
     transfer_id SERIAL PRIMARY KEY,
     person_id INT NOT NULL REFERENCES persons(person_id),
@@ -207,7 +200,7 @@ CREATE TABLE IF NOT EXISTS transfers (
     window_type VARCHAR(6) CHECK (window_type IN ('summer', 'winter'))
 );
 
--- 13. achievements
+--  achievements
 CREATE TABLE IF NOT EXISTS achievements (
     achievement_id SERIAL PRIMARY KEY,
     team_id INT REFERENCES teams(team_id),
@@ -241,7 +234,7 @@ CREATE TABLE IF NOT EXISTS achievements (
     )
 );
 
--- 14. articles
+--articles
 CREATE TABLE IF NOT EXISTS articles (
     article_id SERIAL PRIMARY KEY,
     slug VARCHAR(300) NOT NULL UNIQUE,
@@ -271,7 +264,7 @@ CREATE TABLE IF NOT EXISTS articles (
     meta_description VARCHAR(160)
 );
 
--- 15. comments
+--  comments
 CREATE TABLE IF NOT EXISTS comments (
     comment_id SERIAL PRIMARY KEY,
     article_id INT NOT NULL REFERENCES articles(article_id) ON DELETE CASCADE,
@@ -285,7 +278,7 @@ CREATE TABLE IF NOT EXISTS comments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 16. polls
+-- polls
 CREATE TABLE IF NOT EXISTS polls (
     poll_id SERIAL PRIMARY KEY,
     question VARCHAR(300) NOT NULL,
@@ -308,7 +301,7 @@ CREATE TABLE IF NOT EXISTS polls (
     featured BOOLEAN DEFAULT FALSE
 );
 
--- 17. poll_votes
+--  poll_votes
 CREATE TABLE IF NOT EXISTS poll_votes (
     vote_id SERIAL PRIMARY KEY,
     poll_id INT NOT NULL REFERENCES polls(poll_id) ON DELETE CASCADE,

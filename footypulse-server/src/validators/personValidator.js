@@ -1,6 +1,3 @@
-// ============================================
-// src/validators/personValidator.js
-// ============================================
 
 const { body } = require('express-validator');
 

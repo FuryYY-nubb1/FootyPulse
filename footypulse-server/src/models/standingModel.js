@@ -1,22 +1,10 @@
-// ============================================
-// src/models/standingModel.js
-// ============================================
-// TABLE: standings → references: seasons, teams
-// USED BY: src/controllers/standingsController.js
-//
-// FIX: Alias t.logo_url AS team_logo (frontend expects team_logo)
-// ============================================
 
 const db = require('../config/db');
 
 const StandingModel = {
   async getBySeason(seasonId, groupName = null) {
     let query = `
-      SELECT st.*,
-             t.name AS team_name,
-             t.short_name,
-             t.logo_url AS team_logo,
-             comp.name AS competition_name
+      SELECT st.*, t.name AS team_name,t.short_name,t.logo_url AS team_logo,comp.name AS competition_name
       FROM standings st
       JOIN teams t ON st.team_id = t.team_id
       JOIN seasons s ON st.season_id = s.season_id

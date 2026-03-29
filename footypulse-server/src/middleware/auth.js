@@ -1,20 +1,4 @@
-// ============================================
-// src/middleware/auth.js
-// ============================================
-// PURPOSE: Protects routes that require authentication
-// USED BY: Route files — added before controller for protected endpoints
-//
-// EXAMPLE in routes:
-//   router.get('/countries', controller.getAll);           // Public
-//   router.post('/countries', auth, controller.create);    // Protected
-//   router.delete('/countries/:id', auth, admin, controller.remove); // Admin only
-//
-// HOW IT WORKS:
-//   1. Client sends: Authorization: Bearer <token>
-//   2. This middleware verifies the token
-//   3. Attaches decoded user data to req.user
-//   4. Calls next() to proceed to the controller
-// ============================================
+
 
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');

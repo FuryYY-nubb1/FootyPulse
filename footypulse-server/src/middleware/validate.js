@@ -1,16 +1,3 @@
-// ============================================
-// src/middleware/validate.js
-// ============================================
-// PURPOSE: Runs express-validator rules and returns errors if any
-// USED BY: Route files — sits between validator rules and controller
-//
-// EXAMPLE in routes:
-//   const { teamRules } = require('../validators/teamValidator');
-//   const validate = require('../middleware/validate');
-//
-//   router.post('/teams', auth, teamRules.create, validate, controller.create);
-//   //                          ↑ rules          ↑ check   ↑ handler
-// ============================================
 
 const { validationResult } = require('express-validator');
 

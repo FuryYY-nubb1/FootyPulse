@@ -1,10 +1,4 @@
-// ============================================
-// src/config/env.js
-// ============================================
-// PURPOSE: Loads and exports all environment variables from .env
-// USED BY: Every file that needs env variables imports from here
-//          instead of using process.env directly
-// ============================================
+
 
 const dotenv = require('dotenv');
 dotenv.config();

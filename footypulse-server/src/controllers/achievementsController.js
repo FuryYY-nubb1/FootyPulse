@@ -1,6 +1,3 @@
-// ============================================
-// src/controllers/achievementsController.js
-// ============================================
 
 const AchievementModel = require('../models/achievementModel');
 const asyncHandler = require('../utils/asyncHandler');

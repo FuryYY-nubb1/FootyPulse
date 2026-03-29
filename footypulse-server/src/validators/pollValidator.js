@@ -1,6 +1,3 @@
-// ============================================
-// src/validators/pollValidator.js
-// ============================================
 
 const { body } = require('express-validator');
 

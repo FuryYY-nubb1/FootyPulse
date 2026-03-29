@@ -1,17 +1,11 @@
-// ============================================
-// src/models/matchPlayerModel.js
-// ============================================
-// TABLE: match_players → references: matches, persons, teams
-// USED BY: src/controllers/matchPlayersController.js
-// ============================================
+
 
 const db = require('../config/db');
 
 const MatchPlayerModel = {
   async getByMatch(matchId) {
     const result = await db.query(
-      `SELECT mp.*, p.display_name, p.photo_url, p.primary_position AS default_position,
-              t.name AS team_name
+      `SELECT mp.*, p.display_name, p.photo_url, p.primary_position AS default_position, t.name AS team_name
        FROM match_players mp
        JOIN persons p ON mp.person_id = p.person_id
        JOIN teams t ON mp.team_id = t.team_id
@@ -36,8 +30,7 @@ const MatchPlayerModel = {
 
   async create(fields) {
     const result = await db.query(
-      `INSERT INTO match_players (match_id, person_id, team_id, is_starter, position,
-                                   jersey_number, minute_in, minute_out, stats)
+      `INSERT INTO match_players (match_id, person_id, team_id, is_starter, position,jersey_number, minute_in, minute_out, stats)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [fields.match_id, fields.person_id, fields.team_id, fields.is_starter || false,
        fields.position, fields.jersey_number, fields.minute_in, fields.minute_out,
@@ -49,9 +42,7 @@ const MatchPlayerModel = {
   async update(id, fields) {
     const result = await db.query(
       `UPDATE match_players
-       SET is_starter = COALESCE($1, is_starter), position = COALESCE($2, position),
-           jersey_number = COALESCE($3, jersey_number), minute_in = COALESCE($4, minute_in),
-           minute_out = COALESCE($5, minute_out), stats = COALESCE($6, stats)
+       SET is_starter = COALESCE($1, is_starter), position = COALESCE($2, position),jersey_number = COALESCE($3, jersey_number), minute_in = COALESCE($4, minute_in), minute_out = COALESCE($5, minute_out), stats = COALESCE($6, stats)
        WHERE match_player_id = $7 RETURNING *`,
       [fields.is_starter, fields.position, fields.jersey_number,
        fields.minute_in, fields.minute_out,

@@ -1,6 +1,3 @@
-// ============================================
-// src/validators/commentValidator.js
-// ============================================
 
 const { body } = require('express-validator');
 

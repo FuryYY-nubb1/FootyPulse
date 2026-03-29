@@ -1,19 +1,3 @@
-// ============================================
-// src/app.js
-// ============================================
-// PURPOSE: Creates and configures the Express application
-// USED BY: server.js (imports this and starts listening)
-//
-// MIDDLEWARE ORDER MATTERS:
-//   1. helmet()        → Security headers
-//   2. cors()          → Cross-origin access
-//   3. express.json()  → Parse JSON bodies
-//   4. logger          → Log requests
-//   5. rateLimiter     → Throttle abusive clients
-//   6. routes          → Handle API requests
-//   7. 404 handler     → Catch unmatched routes
-//   8. errorHandler    → Catch all errors (MUST BE LAST)
-// ============================================
 
 const express = require('express');
 const cors = require('cors');

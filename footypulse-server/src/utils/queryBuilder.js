@@ -1,16 +1,3 @@
-// ============================================
-// src/utils/queryBuilder.js
-// ============================================
-// PURPOSE: Builds dynamic WHERE clauses from query parameters
-// USED BY: Model files for filtered queries
-//
-// EXAMPLE:
-//   // URL: /api/v1/teams?country_id=5&team_type=club
-//   const filters = { country_id: 5, team_type: 'club' };
-//   const { whereClause, values } = buildWhereClause(filters);
-//   // whereClause = "WHERE country_id = $1 AND team_type = $2"
-//   // values = [5, 'club']
-// ============================================
 
 const buildWhereClause = (filters) => {
   const conditions = [];

@@ -1,9 +1,3 @@
-// ============================================
-// src/models/contractModel.js
-// ============================================
-// TABLE: contracts → references: persons, teams
-// USED BY: src/controllers/contractsController.js
-// ============================================
 
 const db = require('../config/db');
 
@@ -61,12 +55,7 @@ const ContractModel = {
   async update(id, fields) {
     const result = await db.query(
       `UPDATE contracts
-       SET person_id = COALESCE($1, person_id), team_id = COALESCE($2, team_id),
-           contract_type = COALESCE($3, contract_type), start_date = COALESCE($4, start_date),
-           end_date = COALESCE($5, end_date), jersey_number = COALESCE($6, jersey_number),
-           is_current = COALESCE($7, is_current), parent_club_id = COALESCE($8, parent_club_id),
-           matches_managed = COALESCE($9, matches_managed), wins = COALESCE($10, wins),
-           draws = COALESCE($11, draws), losses = COALESCE($12, losses)
+       SET person_id = COALESCE($1, person_id), team_id = COALESCE($2, team_id),contract_type = COALESCE($3, contract_type), start_date = COALESCE($4, start_date),  end_date = COALESCE($5, end_date), jersey_number = COALESCE($6, jersey_number),is_current = COALESCE($7, is_current), parent_club_id = COALESCE($8, parent_club_id),matches_managed = COALESCE($9, matches_managed), wins = COALESCE($10, wins), draws = COALESCE($11, draws), losses = COALESCE($12, losses)
        WHERE contract_id = $13 RETURNING *`,
       [fields.person_id, fields.team_id, fields.contract_type, fields.start_date,
        fields.end_date, fields.jersey_number, fields.is_current, fields.parent_club_id,

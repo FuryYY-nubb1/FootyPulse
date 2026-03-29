@@ -1,8 +1,4 @@
 
-// src/models/commentModel.js
-// TABLE: comments → references: articles, comments (self-referencing for replies)
-// USED BY: src/controllers/commentsController.js
-
 const db = require('../config/db');
 
 const CommentModel = {

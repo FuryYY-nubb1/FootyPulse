@@ -1,9 +1,4 @@
-// ============================================
-// database/runSchema.js
-// ============================================
-// PURPOSE: Runs schema.sql against your Neon database
-// USAGE: npm run db:schema
-// ============================================
+
 
 const fs = require('fs');
 const path = require('path');
@@ -16,9 +11,9 @@ const run = async () => {
   try {
     const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
     await pool.query(sql);
-    console.log('✅ Schema created successfully!');
+    console.log('Schema created successfully!');
   } catch (err) {
-    console.error('❌ Schema error:', err.message);
+    console.error(' Schema error:', err.message);
   } finally {
     await pool.end();
   }

@@ -1,6 +1,3 @@
-// ============================================
-// src/validators/transferValidator.js
-// ============================================
 
 const { body } = require('express-validator');
 

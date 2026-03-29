@@ -1,6 +1,4 @@
-// ============================================
-// src/routes/achievementsRoutes.js
-// ============================================
+
 
 const router = require('express').Router();
 const controller = require('../controllers/achievementsController');

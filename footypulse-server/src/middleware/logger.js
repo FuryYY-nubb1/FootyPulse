@@ -1,9 +1,4 @@
-// ============================================
-// src/middleware/logger.js
-// ============================================
-// PURPOSE: HTTP request logging
-// USED BY: src/app.js
-// ============================================
+
 
 const morgan = require('morgan');
 const config = require('../config/env');

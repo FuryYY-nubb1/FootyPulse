@@ -1,6 +1,3 @@
-// ============================================
-// src/validators/teamValidator.js
-// ============================================
 
 const { body } = require('express-validator');
 

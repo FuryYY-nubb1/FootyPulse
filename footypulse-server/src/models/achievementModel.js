@@ -1,15 +1,11 @@
 
-// src/models/achievementModel.js
-// TABLE: achievements → references: teams, persons, competitions, seasons
-// USED BY: src/controllers/achievementsController.js
 
 const db = require('../config/db');
 
 const AchievementModel = {
   async getAll(limit = 20, offset = 0, filters = {}) {
     let query = `
-      SELECT a.*, t.name AS team_name, p.display_name AS person_name,
-             comp.name AS competition_name, s.name AS season_name
+      SELECT a.*, t.name AS team_name, p.display_name AS person_name,comp.name AS competition_name, s.name AS season_name
       FROM achievements a
       LEFT JOIN teams t ON a.team_id = t.team_id
       LEFT JOIN persons p ON a.person_id = p.person_id
@@ -36,8 +32,7 @@ const AchievementModel = {
 
   async getById(id) {
     const result = await db.query(
-      `SELECT a.*, t.name AS team_name, p.display_name AS person_name,
-              comp.name AS competition_name
+      `SELECT a.*, t.name AS team_name, p.display_name AS person_name, comp.name AS competition_name
        FROM achievements a
        LEFT JOIN teams t ON a.team_id = t.team_id
        LEFT JOIN persons p ON a.person_id = p.person_id
@@ -50,9 +45,7 @@ const AchievementModel = {
 
   async create(fields) {
     const result = await db.query(
-      `INSERT INTO achievements (team_id, person_id, achievement_type, title, description,
-                                  competition_id, season_id, year, month, position, stats,
-                                  image_url, is_major)
+      `INSERT INTO achievements (team_id, person_id, achievement_type, title, description, competition_id, season_id, year, month, position, stats,image_url, is_major)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
       [fields.team_id, fields.person_id, fields.achievement_type, fields.title,
        fields.description, fields.competition_id, fields.season_id, fields.year,
@@ -65,12 +58,7 @@ const AchievementModel = {
   async update(id, fields) {
     const result = await db.query(
       `UPDATE achievements
-       SET achievement_type = COALESCE($1, achievement_type), title = COALESCE($2, title),
-           description = COALESCE($3, description), competition_id = COALESCE($4, competition_id),
-           season_id = COALESCE($5, season_id), year = COALESCE($6, year),
-           month = COALESCE($7, month), position = COALESCE($8, position),
-           stats = COALESCE($9, stats), image_url = COALESCE($10, image_url),
-           is_major = COALESCE($11, is_major)
+       SET achievement_type = COALESCE($1, achievement_type), title = COALESCE($2, title), description = COALESCE($3, description), competition_id = COALESCE($4, competition_id),season_id = COALESCE($5, season_id), year = COALESCE($6, year), month = COALESCE($7, month), position = COALESCE($8, position), stats = COALESCE($9, stats), image_url = COALESCE($10, image_url),  is_major = COALESCE($11, is_major)
        WHERE achievement_id = $12 RETURNING *`,
       [fields.achievement_type, fields.title, fields.description, fields.competition_id,
        fields.season_id, fields.year, fields.month, fields.position,

@@ -1,9 +1,3 @@
-// ============================================
-// src/models/personModel.js
-// ============================================
-// TABLE: persons → references: countries (nationality)
-// USED BY: src/controllers/personsController.js
-// ============================================
 
 const db = require('../config/db');
 
@@ -57,9 +51,7 @@ const PersonModel = {
 
   async create(fields) {
     const result = await db.query(
-      `INSERT INTO persons (person_type, first_name, last_name, date_of_birth,
-                            nationality_id, photo_url, height_cm, preferred_foot,
-                            primary_position, market_value, preferred_formation)
+      `INSERT INTO persons (person_type, first_name, last_name, date_of_birth,nationality_id, photo_url, height_cm, preferred_foot, primary_position, market_value, preferred_formation)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [fields.person_type, fields.first_name, fields.last_name, fields.date_of_birth,
        fields.nationality_id, fields.photo_url, fields.height_cm, fields.preferred_foot,

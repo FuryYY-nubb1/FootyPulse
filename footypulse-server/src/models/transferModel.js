@@ -1,9 +1,3 @@
-// ============================================
-// src/models/transferModel.js
-// ============================================
-// TABLE: transfers → references: persons, teams
-// USED BY: src/controllers/transfersController.js
-// ============================================
 
 const db = require('../config/db');
 

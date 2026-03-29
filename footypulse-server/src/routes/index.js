@@ -1,17 +1,3 @@
-// ============================================
-// src/routes/index.js
-// ============================================
-// PURPOSE: Aggregates ALL route files and mounts them under their paths
-// USED BY: src/app.js → app.use('/api/v1', routes);
-//
-// HOW THE CHAIN WORKS:
-//   Request: GET /api/v1/teams/5/squad
-//   1. app.js receives request
-//   2. app.use('/api/v1', routes) → strips '/api/v1', passes '/teams/5/squad' here
-//   3. router.use('/teams', teamsRoutes) → strips '/teams', passes '/5/squad' to teamsRoutes
-//   4. teamsRoutes has: router.get('/:id/squad', controller.getSquad) → matches!
-//   5. controller.getSquad runs → calls TeamModel.getSquad(5) → returns JSON
-// ============================================
 
 const router = require('express').Router();
 

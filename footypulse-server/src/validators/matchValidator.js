@@ -1,6 +1,4 @@
-// ============================================
-// src/validators/matchValidator.js
-// ============================================
+
 
 const { body } = require('express-validator');
 

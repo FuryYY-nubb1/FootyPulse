@@ -1,9 +1,3 @@
-// ============================================
-// src/models/countryModel.js
-// ============================================
-// TABLE: countries (no foreign keys — base table)
-// USED BY: src/controllers/countriesController.js
-// ============================================
 
 const db = require('../config/db');
 

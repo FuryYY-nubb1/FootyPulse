@@ -22,7 +22,7 @@ const run = async () => {
       .map(stmt => stmt.trim())
       .filter(stmt => stmt.length > 0);
     
-    console.log(`📝 Executing ${statements.length} SQL statements...`);
+    console.log(`Executing ${statements.length} SQL statements...`);
     
     let executed = 0;
     for (const statement of statements) {
@@ -36,7 +36,7 @@ const run = async () => {
             console.log(`   Executed ${executed}/${statements.length} statements...`);
           }
         } catch (err) {
-          console.error(`\n❌ Error executing statement ${executed + 1}:`);
+          console.error(`\nError executing statement ${executed + 1}:`);
           console.error(`Statement preview: ${statement.substring(0, 100)}...`);
           console.error(`Error: ${err.message}\n`);
           throw err;
@@ -44,10 +44,10 @@ const run = async () => {
       }
     }
     
-    console.log(`✅ Successfully executed ${executed} statements!`);
+    console.log(` Successfully executed ${executed} statements!`);
     
     // Verify the data
-    console.log('\n📊 Verifying data...');
+    console.log('\n Verifying data...');
     const counts = await Promise.all([
       pool.query('SELECT COUNT(*) FROM users'),
       pool.query('SELECT COUNT(*) FROM countries'),
@@ -69,7 +69,7 @@ const run = async () => {
       pool.query('SELECT COUNT(*) FROM poll_votes')
     ]);
     
-    console.log('\n📊 Data Summary:');
+    console.log('\nData Summary:');
     console.log(`   Users: ${counts[0].rows[0].count}`);
     console.log(`   Countries: ${counts[1].rows[0].count}`);
     console.log(`   Stadiums: ${counts[2].rows[0].count}`);
@@ -91,7 +91,7 @@ const run = async () => {
     console.log('\n✨ Database seeding complete!\n');
     
   } catch (err) {
-    console.error('\n❌ Seed failed:', err.message);
+    console.error('\n Seed failed:', err.message);
     process.exit(1);
   } finally {
     await pool.end();

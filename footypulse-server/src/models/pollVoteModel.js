@@ -1,9 +1,3 @@
-// ============================================
-// src/models/pollVoteModel.js
-// ============================================
-// TABLE: poll_votes → references: polls
-// USED BY: src/controllers/pollVotesController.js, src/controllers/pollsController.js
-// ============================================
 
 const db = require('../config/db');
 

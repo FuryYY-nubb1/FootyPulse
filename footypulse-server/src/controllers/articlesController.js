@@ -1,6 +1,3 @@
-// ============================================
-// src/controllers/articlesController.js
-// ============================================
 
 const ArticleModel = require('../models/articleModel');
 const asyncHandler = require('../utils/asyncHandler');

@@ -1,9 +1,3 @@
-// ============================================
-// src/models/matchModel.js
-// ============================================
-// TABLE: matches → references: seasons, teams, persons, stadiums
-// USED BY: src/controllers/matchesController.js
-// ============================================
 
 const db = require('../config/db');
 

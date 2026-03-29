@@ -1,9 +1,3 @@
-// ============================================
-// src/models/stadiumModel.js
-// ============================================
-// TABLE: stadiums → references: countries
-// USED BY: src/controllers/stadiumsController.js
-// ============================================
 
 const db = require('../config/db');
 

@@ -9,9 +9,9 @@ const run = async () => {
   try {
     const sql = fs.readFileSync(path.join(__dirname, 'indexes.sql'), 'utf8');
     await pool.query(sql);
-    console.log('✅ Indexes created successfully!');
+    console.log(' Indexes created successfully!');
   } catch (err) {
-    console.error('❌ Index error:', err.message);
+    console.error(' Index error:', err.message);
   } finally {
     await pool.end();
   }

@@ -1,14 +1,4 @@
-// ============================================
-// src/utils/ApiError.js
-// ============================================
-// PURPOSE: Custom error class that carries an HTTP status code
-// USED BY: Controllers throw these → errorHandler middleware catches them
-// 
-// EXAMPLE:
-//   throw ApiError.notFound('Country not found');
-//   throw ApiError.badRequest('Name is required');
-//   throw new ApiError(409, 'Email already exists');
-// ============================================
+
 
 class ApiError extends Error {
   constructor(statusCode, message) {

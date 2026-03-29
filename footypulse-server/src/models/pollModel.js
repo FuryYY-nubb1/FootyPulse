@@ -1,9 +1,3 @@
-// ============================================
-// src/models/pollModel.js
-// ============================================
-// TABLE: polls → references: teams, competitions, persons, matches, articles
-// USED BY: src/controllers/pollsController.js
-// ============================================
 
 const db = require('../config/db');
 
@@ -49,9 +43,7 @@ const PollModel = {
     }));
 
     const result = await db.query(
-      `INSERT INTO polls (question, description, poll_type, options, start_date,
-                          end_date, status, team_id, competition_id, person_id,
-                          match_id, article_id, featured)
+      `INSERT INTO polls (question, description, poll_type, options, start_date,end_date, status, team_id, competition_id, person_id, match_id, article_id, featured)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
       [fields.question, fields.description, fields.poll_type || 'single',
        JSON.stringify(options), fields.start_date || new Date().toISOString(),

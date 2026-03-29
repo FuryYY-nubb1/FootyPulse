@@ -1,7 +1,4 @@
 
-// src/models/articleModel.js
-// TABLE: articles → references: teams, competitions, persons, matches
-// USED BY: src/controllers/articlesController.js
 
 
 const db = require('../config/db');
@@ -9,8 +6,7 @@ const db = require('../config/db');
 const ArticleModel = {
   async getAll(limit = 20, offset = 0, filters = {}) {
     let query = `
-      SELECT a.*, t.name AS team_name, comp.name AS competition_name,
-             p.display_name AS person_name
+      SELECT a.*, t.name AS team_name, comp.name AS competition_name, p.display_name AS person_name
       FROM articles a
       LEFT JOIN teams t ON a.team_id = t.team_id
       LEFT JOIN competitions comp ON a.competition_id = comp.competition_id
@@ -37,8 +33,7 @@ const ArticleModel = {
 
   async getBySlug(slug) {
     const result = await db.query(
-      `SELECT a.*, t.name AS team_name, comp.name AS competition_name,
-              p.display_name AS person_name
+      `SELECT a.*, t.name AS team_name, comp.name AS competition_name, p.display_name AS person_name
        FROM articles a
        LEFT JOIN teams t ON a.team_id = t.team_id
        LEFT JOIN competitions comp ON a.competition_id = comp.competition_id
@@ -51,8 +46,7 @@ const ArticleModel = {
 
   async getById(id) {
     const result = await db.query(
-      `SELECT a.*, t.name AS team_name, comp.name AS competition_name,
-              p.display_name AS person_name
+      `SELECT a.*, t.name AS team_name, comp.name AS competition_name, p.display_name AS person_name
        FROM articles a
        LEFT JOIN teams t ON a.team_id = t.team_id
        LEFT JOIN competitions comp ON a.competition_id = comp.competition_id
@@ -65,10 +59,7 @@ const ArticleModel = {
 
   async create(fields) {
     const result = await db.query(
-      `INSERT INTO articles (slug, title, subtitle, excerpt, content, article_type,
-                             media, author_name, author_id, published_at, status,
-                             is_featured, is_breaking, tags, team_id, competition_id,
-                             person_id, match_id, meta_description)
+      `INSERT INTO articles (slug, title, subtitle, excerpt, content, article_type, media, author_name, author_id, published_at, status, is_featured, is_breaking, tags, team_id, competition_id,person_id, match_id, meta_description)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
       [fields.slug, fields.title, fields.subtitle, fields.excerpt, fields.content,
        fields.article_type || 'news', fields.media ? JSON.stringify(fields.media) : '{}',

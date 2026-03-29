@@ -1,8 +1,3 @@
-// ============================================
-// src/routes/competitionsRoutes.js
-// ============================================
-// UPDATED: Added nested routes for seasons, matches, scorers, news
-// ============================================
 
 const router = require('express').Router();
 const controller = require('../controllers/competitionsController');

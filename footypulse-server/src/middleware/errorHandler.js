@@ -1,15 +1,4 @@
-// ============================================
-// src/middleware/errorHandler.js
-// ============================================
-// PURPOSE: Catches ALL errors thrown in the app and sends a clean JSON response
-// USED BY: src/app.js — must be the LAST middleware registered
-//
-// HOW IT WORKS:
-//   1. Controller throws an error (or asyncHandler catches one)
-//   2. Express routes it here via next(err)
-//   3. We check if it's an ApiError (operational) or unexpected
-//   4. Send appropriate JSON response
-// ============================================
+
 
 const config = require('../config/env');
 
