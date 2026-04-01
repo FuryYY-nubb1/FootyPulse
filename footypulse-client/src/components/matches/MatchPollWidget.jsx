@@ -1,22 +1,15 @@
 // ============================================
 // src/components/matches/MatchPollWidget.jsx
 // ============================================
-// Compact "PICK YOUR WINNER" poll widget for the match detail sidebar.
-// Fetches polls linked to the current match and allows inline voting.
+// UPDATED: Uses authenticated user (useAuth) instead of anonymous ID.
+//          Shows "Sign in to vote" for unauthenticated users.
 // ============================================
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { pollsApi } from '../../api/pollsApi';
-
-function getOrCreateUserId() {
-  let userId = localStorage.getItem('footypulse_user_id');
-  if (!userId) {
-    userId = 'anon_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-    localStorage.setItem('footypulse_user_id', userId);
-  }
-  return userId;
-}
+import { useAuth } from '../../context/AuthContext';
+import { BarChart3, Users, LogIn } from 'lucide-react';
 
 function PollOptionBar({ option, totalVotes, isSelected, isActive, voting, onVote, teamLogo, teamShort }) {
   const votes = option.votes || 0;
@@ -27,76 +20,44 @@ function PollOptionBar({ option, totalVotes, isSelected, isActive, voting, onVot
       onClick={onVote}
       disabled={!isActive || voting}
       style={{
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 10,
-        padding: '10px 14px',
+        display: 'flex', alignItems: 'center', gap: 'var(--space-sm)',
+        padding: 'var(--space-sm) var(--space-md)',
         background: isSelected ? 'var(--accent-primary-dim)' : 'var(--bg-secondary)',
         border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
         borderRadius: 'var(--radius-md)',
         cursor: isActive && !voting ? 'pointer' : 'default',
         transition: 'all var(--transition-fast)',
+        width: '100%',
         position: 'relative',
         overflow: 'hidden',
+        color: 'var(--text-primary)',
       }}
     >
-      {/* Progress background */}
-      <div style={{
-        position: 'absolute',
-        left: 0, top: 0, bottom: 0,
-        width: `${percent}%`,
-        background: isSelected
-          ? 'rgba(0, 245, 160, 0.12)'
-          : 'rgba(255, 255, 255, 0.03)',
-        transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-        borderRadius: 'var(--radius-md)',
-      }} />
+      {/* Progress bar */}
+      {!isActive && (
+        <div style={{
+          position: 'absolute', left: 0, top: 0, bottom: 0,
+          width: `${percent}%`,
+          background: isSelected
+            ? 'rgba(var(--accent-primary-rgb, 99, 102, 241), 0.15)'
+            : 'rgba(255,255,255,0.04)',
+          transition: 'width 0.6s ease',
+        }} />
+      )}
 
-      {/* Left: Team icon + name */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        position: 'relative',
-        zIndex: 1,
+        position: 'relative', display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', width: '100%',
       }}>
-        {teamLogo && (
-          <div style={{
-            width: 22, height: 22, borderRadius: 4,
-            background: 'var(--bg-tertiary)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            overflow: 'hidden', flexShrink: 0,
-          }}>
-            <img src={teamLogo} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-          </div>
-        )}
-        <span style={{
-          fontWeight: 700,
-          fontSize: 'var(--fs-sm)',
-          color: 'var(--text-primary)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.03em',
-        }}>
-          {teamShort || option.text || option.label}
-        </span>
-      </div>
-
-      {/* Right: votes + percent */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        position: 'relative',
-        zIndex: 1,
-      }}>
-        <span style={{
-          fontSize: 'var(--fs-xs)',
-          color: 'var(--text-tertiary)',
-        }}>
-          {votes} vote{votes !== 1 ? 's' : ''}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+          {teamLogo && <img src={teamLogo} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />}
+          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: isSelected ? 700 : 500 }}>
+            {option.text || option.label}
+          </span>
+          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-tertiary)' }}>
+            {votes} vote{votes !== 1 ? 's' : ''}
+          </span>
+        </div>
         <span style={{
           fontFamily: 'var(--font-mono)',
           fontSize: 'var(--fs-md)',
@@ -119,7 +80,9 @@ export default function MatchPollWidget({ matchId, match }) {
   const [userSelection, setUserSelection] = useState(null);
   const [voting, setVoting] = useState(false);
 
-  const userId = getOrCreateUserId();
+  // Use authenticated user instead of anonymous ID
+  const { user, isAuthenticated } = useAuth();
+  const userId = user ? String(user.user_id) : null;
 
   useEffect(() => {
     if (!matchId) { setLoading(false); return; }
@@ -135,16 +98,18 @@ export default function MatchPollWidget({ matchId, match }) {
         if (matchPoll) {
           setPoll(matchPoll);
 
-          // Check if user has voted
-          try {
-            const voteRes = await pollsApi.getUserVote(matchPoll.poll_id, userId);
-            if (voteRes.data?.has_voted && voteRes.data.vote) {
-              setHasVoted(true);
-              const selected = voteRes.data.vote.selected_options;
-              setUserSelection(Array.isArray(selected) ? selected : JSON.parse(selected || '[]'));
+          // Check if user has voted (only if logged in)
+          if (userId) {
+            try {
+              const voteRes = await pollsApi.getUserVote(matchPoll.poll_id, userId);
+              if (voteRes.data?.has_voted && voteRes.data.vote) {
+                setHasVoted(true);
+                const selected = voteRes.data.vote.selected_options;
+                setUserSelection(Array.isArray(selected) ? selected : JSON.parse(selected || '[]'));
+              }
+            } catch {
+              // Not voted — fine
             }
-          } catch {
-            // Not voted — fine
           }
         }
       } catch (err) {
@@ -157,11 +122,10 @@ export default function MatchPollWidget({ matchId, match }) {
   }, [matchId, userId]);
 
   const handleVote = useCallback(async (optionId) => {
-    if (!poll || poll.status !== 'active' || hasVoted || voting) return;
+    if (!isAuthenticated || !poll || poll.status !== 'active' || hasVoted || voting) return;
     setVoting(true);
     try {
       const res = await pollsApi.vote(poll.poll_id, {
-        user_id: userId,
         selected_options: [optionId],
       });
       setHasVoted(true);
@@ -173,49 +137,27 @@ export default function MatchPollWidget({ matchId, match }) {
       console.error('Vote failed:', err);
     }
     setVoting(false);
-  }, [poll, hasVoted, voting, userId]);
+  }, [poll, hasVoted, voting, isAuthenticated]);
 
   if (loading) return null;
   if (!poll) return null;
 
   const options = poll.options || [];
   const totalVotes = poll.total_votes || options.reduce((sum, o) => sum + (o.votes || 0), 0);
-  const isActive = poll.status === 'active' && !hasVoted;
+  const isActive = poll.status === 'active' && !hasVoted && isAuthenticated;
 
   // Try to map options to team logos (Home Win, Draw, Away Win pattern)
-  const getTeamInfo = (option, index) => {
+  const getTeamInfo = (option, idx) => {
     const text = (option.text || option.label || '').toLowerCase();
-    if (text.includes('draw')) return { logo: null, short: 'DRAW' };
-
-    // Check if it matches home team
-    const homeName = (match?.home_team_name || '').toLowerCase();
-    const homeShort = (match?.home_short || match?.home_team_short || '').toLowerCase();
-    if (text.includes(homeName) || (homeShort && text.includes(homeShort)) || (index === 0 && !text.includes('draw'))) {
-      return {
-        logo: match?.home_logo || match?.home_team_logo,
-        short: match?.home_short || match?.home_team_short || match?.home_team_name || option.text,
-      };
+    if (match) {
+      if (text.includes('home') || text.includes(match.home_team?.short_name?.toLowerCase() || '___')) {
+        return { logo: match.home_team?.logo_url, short: match.home_team?.short_name };
+      }
+      if (text.includes('away') || text.includes(match.away_team?.short_name?.toLowerCase() || '___')) {
+        return { logo: match.away_team?.logo_url, short: match.away_team?.short_name };
+      }
     }
-
-    // Check if it matches away team
-    const awayName = (match?.away_team_name || '').toLowerCase();
-    const awayShort = (match?.away_short || match?.away_team_short || '').toLowerCase();
-    if (text.includes(awayName) || (awayShort && text.includes(awayShort))) {
-      return {
-        logo: match?.away_logo || match?.away_team_logo,
-        short: match?.away_short || match?.away_team_short || match?.away_team_name || option.text,
-      };
-    }
-
-    // Default: last option is usually away
-    if (index === options.length - 1) {
-      return {
-        logo: match?.away_logo || match?.away_team_logo,
-        short: match?.away_short || match?.away_team_short || match?.away_team_name || option.text,
-      };
-    }
-
-    return { logo: null, short: option.text || option.label };
+    return { logo: null, short: null };
   };
 
   return (
@@ -223,33 +165,28 @@ export default function MatchPollWidget({ matchId, match }) {
       background: 'var(--gradient-card)',
       border: '1px solid var(--border-subtle)',
       borderRadius: 'var(--radius-lg)',
-      overflow: 'hidden',
+      padding: 'var(--space-lg)',
     }}>
-      {/* Header */}
       <div style={{
-        padding: '14px 16px',
-        borderBottom: '1px solid var(--border-subtle)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 'var(--space-md)',
       }}>
         <h4 style={{
-          fontSize: 'var(--fs-md)',
-          fontWeight: 800,
-          fontFamily: 'var(--font-display)',
-          textTransform: 'uppercase',
-          letterSpacing: '-0.01em',
-          color: 'var(--text-primary)',
-          margin: 0,
+          fontSize: 'var(--fs-sm)', fontWeight: 700,
+          display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          PICK YOUR WINNER
+          <BarChart3 size={16} style={{ color: 'var(--accent-secondary)' }} />
+          {poll.question}
         </h4>
+        <span style={{
+          fontSize: 'var(--fs-xs)', color: 'var(--text-tertiary)',
+          display: 'flex', alignItems: 'center', gap: 4,
+        }}>
+          <Users size={12} /> {totalVotes}
+        </span>
       </div>
 
-      {/* Poll options */}
-      <div style={{
-        padding: '12px 16px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-      }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
         {options.map((option, i) => {
           const optionId = option.id !== undefined ? option.id : i;
           const teamInfo = getTeamInfo(option, i);
@@ -268,6 +205,18 @@ export default function MatchPollWidget({ matchId, match }) {
             />
           );
         })}
+
+        {/* Sign in prompt for unauthenticated users */}
+        {!isAuthenticated && poll.status === 'active' && (
+          <Link to="/login" style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: 'var(--space-xs)',
+            fontSize: 'var(--fs-xs)', color: 'var(--accent-primary)',
+            textDecoration: 'none', fontWeight: 600,
+          }}>
+            <LogIn size={14} /> Sign in to vote
+          </Link>
+        )}
 
         {/* Link to full poll */}
         {poll.poll_id && (

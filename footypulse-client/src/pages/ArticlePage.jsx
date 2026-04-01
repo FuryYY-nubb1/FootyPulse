@@ -1,7 +1,16 @@
+// ============================================
+// src/pages/ArticlePage.jsx
+// ============================================
+// FIXED: Uses article.article_id (not article.id) for comment fetching.
+//        Passes authenticated user data when creating comments.
+//        Shows login prompt for unauthenticated users.
+// ============================================
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { articlesApi } from '../api/articlesApi';
 import { commentsApi } from '../api/commentsApi';
+import { useAuth } from '../context/AuthContext';
 import ArticleContent from '../components/articles/ArticleContent';
 import CommentSection from '../components/articles/CommentSection';
 import Breadcrumb from '../components/common/Breadcrumb';
@@ -12,6 +21,7 @@ export default function ArticlePage() {
   const [article, setArticle] = useState(null);
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
     const load = async () => {
@@ -21,8 +31,11 @@ export default function ArticlePage() {
         const aRes = isSlug ? await articlesApi.getBySlug(id) : await articlesApi.getById(id);
         const art = aRes?.data || aRes;
         setArticle(art);
-        if (art?.id) {
-          const cRes = await commentsApi.getByArticle(art.id);
+
+        // Use article_id (the actual DB column name)
+        const articleId = art?.article_id || art?.id;
+        if (articleId) {
+          const cRes = await commentsApi.getByArticle(articleId);
           setComments(cRes?.data || cRes || []);
         }
       } catch (err) {
@@ -35,12 +48,22 @@ export default function ArticlePage() {
   }, [id]);
 
   const handleComment = async (text) => {
+    const articleId = article?.article_id || article?.id;
+    if (!articleId || !isAuthenticated) return;
+
     try {
-      await commentsApi.create(article.id, { content: text });
-      const cRes = await commentsApi.getByArticle(article.id);
+      await commentsApi.create({
+        article_id: articleId,
+        user_id: String(user.user_id),
+        user_name: user.name || user.email,
+        content: text,
+      });
+
+      // Re-fetch comments to show the new one with timestamp
+      const cRes = await commentsApi.getByArticle(articleId);
       setComments(cRes?.data || cRes || []);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to post comment:', err);
     }
   };
 

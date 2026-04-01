@@ -1,9 +1,9 @@
 // ============================================
 // src/api/pollsApi.js
 // ============================================
-// NOTE: axiosConfig interceptor already returns response.data,
-// so api.get() returns the server's JSON body directly.
-// Do NOT chain .then(res => res.data) — that would double-unwrap.
+// UPDATED: vote() no longer sends user_id in the body.
+//          The server now extracts user_id from the JWT token
+//          (sent automatically via the axios Authorization header).
 // ============================================
 
 import api from './axiosConfig';
@@ -23,7 +23,9 @@ export const pollsApi = {
   // GET /polls?match_id=:matchId  — fetch polls linked to a specific match
   getByMatch: (matchId) => api.get('/polls', { params: { match_id: matchId } }),
 
-  // POST /polls/:id/votes  { user_id, selected_options }
+  // POST /polls/:id/votes  { selected_options }
+  // REQUIRES AUTH: JWT token sent via Authorization header
+  // user_id is extracted from the token on the server side
   // Returns: { success: true, data: { vote: {...}, poll: {...} } }
   vote: (pollId, data) => api.post(`/polls/${pollId}/votes`, data),
 

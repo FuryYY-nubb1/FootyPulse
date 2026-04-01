@@ -1,3 +1,11 @@
+// ============================================
+// src/models/commentModel.js
+// ============================================
+// UPDATED: create() uses explicit transaction control
+//          (BEGIN/COMMIT/ROLLBACK) for the multi-step
+//          insert comment + update article comment_count.
+//          delete() also uses explicit transaction control.
+// ============================================
 
 const db = require('../config/db');
 
@@ -30,18 +38,32 @@ const CommentModel = {
     return result.rows[0];
   },
 
+  // Explicit transaction control: insert comment + update article count
   async create(fields) {
-    const result = await db.query(
-      `INSERT INTO comments (article_id, parent_id, user_id, user_name, content, status)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [fields.article_id, fields.parent_id, fields.user_id, fields.user_name,
-       fields.content, fields.status || 'approved']
-    );
-    await db.query(
-      'UPDATE articles SET comment_count = comment_count + 1 WHERE article_id = $1',
-      [fields.article_id]
-    );
-    return result.rows[0];
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        `INSERT INTO comments (article_id, parent_id, user_id, user_name, content, status)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [fields.article_id, fields.parent_id || null, fields.user_id, fields.user_name,
+         fields.content, fields.status || 'approved']
+      );
+
+      await client.query(
+        'UPDATE articles SET comment_count = comment_count + 1 WHERE article_id = $1',
+        [fields.article_id]
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
   async update(id, fields) {
@@ -54,16 +76,34 @@ const CommentModel = {
     return result.rows[0];
   },
 
+  // Explicit transaction control: delete comment + decrement article count
   async delete(id) {
-    const comment = await db.query('SELECT article_id FROM comments WHERE comment_id = $1', [id]);
-    const result = await db.query('DELETE FROM comments WHERE comment_id = $1 RETURNING *', [id]);
-    if (result.rows[0] && comment.rows[0]) {
-      await db.query(
-        'UPDATE articles SET comment_count = GREATEST(0, comment_count - 1) WHERE article_id = $1',
-        [comment.rows[0].article_id]
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      const comment = await client.query(
+        'SELECT article_id FROM comments WHERE comment_id = $1', [id]
       );
+      const result = await client.query(
+        'DELETE FROM comments WHERE comment_id = $1 RETURNING *', [id]
+      );
+
+      if (result.rows[0] && comment.rows[0]) {
+        await client.query(
+          'UPDATE articles SET comment_count = GREATEST(0, comment_count - 1) WHERE article_id = $1',
+          [comment.rows[0].article_id]
+        );
+      }
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-    return result.rows[0];
   },
 
   async like(id) {

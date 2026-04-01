@@ -1,27 +1,22 @@
 // ============================================
 // src/pages/PollDetailPage.jsx
-// WHERE: Add to src/pages/
+// WHERE: Replace src/pages/PollDetailPage.jsx
 // ROUTE: /polls/:id
+// ============================================
+// UPDATED: Uses authenticated user (useAuth) instead of anonymous ID.
+//          Shows "Login to vote" when not authenticated.
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { pollsApi } from '../api/pollsApi';
+import { useAuth } from '../context/AuthContext';
 import PollResults from '../components/polls/PollResults';
 import Loader from '../components/common/Loader';
 import {
   BarChart3, ArrowLeft, Clock, Lock, CheckCircle,
-  Users, Calendar, Tag, Share2
+  Users, Calendar, Tag, Share2, LogIn
 } from 'lucide-react';
-
-function getOrCreateUserId() {
-  let userId = localStorage.getItem('footypulse_user_id');
-  if (!userId) {
-    userId = 'anon_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-    localStorage.setItem('footypulse_user_id', userId);
-  }
-  return userId;
-}
 
 export default function PollDetailPage() {
   const { id } = useParams();
@@ -34,7 +29,9 @@ export default function PollDetailPage() {
   const [selectedOption, setSelectedOption] = useState(null);
   const [toastMsg, setToastMsg] = useState(null);
 
-  const userId = getOrCreateUserId();
+  // Use authenticated user instead of anonymous ID
+  const { user, isAuthenticated } = useAuth();
+  const userId = user ? String(user.user_id) : null;
 
   // Fetch poll and vote status
   useEffect(() => {
@@ -42,34 +39,41 @@ export default function PollDetailPage() {
       setLoading(true);
       setError(null);
       try {
-        const [pollRes, voteRes] = await Promise.all([
-          pollsApi.getById(id),
-          pollsApi.getUserVote(id, userId).catch(() => ({ data: { has_voted: false } })),
-        ]);
-
+        const pollRes = await pollsApi.getById(id);
         setPoll(pollRes.data);
 
-        if (voteRes.data?.has_voted && voteRes.data.vote) {
-          setHasVoted(true);
-          const selected = voteRes.data.vote.selected_options;
-          setUserSelection(Array.isArray(selected) ? selected : JSON.parse(selected || '[]'));
+        // Check vote status only if logged in
+        if (userId) {
+          try {
+            const voteRes = await pollsApi.getUserVote(id, userId);
+            if (voteRes.data?.has_voted && voteRes.data.vote) {
+              setHasVoted(true);
+              const selected = voteRes.data.vote.selected_options;
+              setUserSelection(Array.isArray(selected) ? selected : JSON.parse(selected || '[]'));
+            }
+          } catch {
+            // Not voted — fine
+          }
         }
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load poll');
+        setError(err.message || 'Failed to load poll');
       }
       setLoading(false);
     };
     fetchPoll();
   }, [id, userId]);
 
-  // Handle vote
+  // Handle vote (requires authentication)
   const handleVote = useCallback(async (optionId) => {
+    if (!isAuthenticated) {
+      showToast('Please log in to vote.', true);
+      return;
+    }
     if (!poll || poll.status !== 'active' || hasVoted || voting) return;
     setVoting(true);
     setSelectedOption(optionId);
     try {
       const res = await pollsApi.vote(poll.poll_id, {
-        user_id: userId,
         selected_options: [optionId],
       });
 
@@ -83,11 +87,11 @@ export default function PollDetailPage() {
       showToast('Vote recorded! Thanks for participating.');
     } catch (err) {
       setSelectedOption(null);
-      const msg = err.response?.data?.message || 'Failed to vote. Please try again.';
+      const msg = err.message || 'Failed to vote. Please try again.';
       showToast(msg, true);
     }
     setVoting(false);
-  }, [poll, hasVoted, voting, userId]);
+  }, [poll, hasVoted, voting, isAuthenticated]);
 
   const showToast = (message, isError = false) => {
     setToastMsg({ message, isError });
@@ -158,62 +162,81 @@ export default function PollDetailPage() {
               display: 'inline-flex', alignItems: 'center', gap: 6,
               fontSize: 'var(--fs-sm)', fontWeight: 600,
               color: isActive ? 'var(--accent-success)' : 'var(--text-tertiary)',
-              background: isActive ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-secondary)',
-              padding: '4px 12px', borderRadius: 'var(--radius-full, 50px)',
+              background: isActive ? 'rgba(46, 213, 115, 0.1)' : 'var(--bg-secondary)',
+              padding: '4px 12px', borderRadius: 'var(--radius-full)',
             }}>
               {isActive ? <Clock size={14} /> : <Lock size={14} />}
               {isActive ? 'Active' : 'Closed'}
             </div>
 
             <button onClick={handleShare} style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 4,
-              fontSize: 'var(--fs-sm)',
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 12px', fontSize: 'var(--fs-xs)',
+              color: 'var(--text-secondary)', background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
             }}>
-              <Share2 size={16} /> Share
+              <Share2 size={14} /> Share
             </button>
           </div>
 
           {/* Question */}
           <h1 style={{
-            fontSize: 'var(--fs-xl, 1.5rem)', fontWeight: 800,
-            lineHeight: 1.3, marginBottom: 'var(--space-sm)',
+            fontSize: 'var(--fs-xl)', fontWeight: 800, lineHeight: 1.3,
+            marginBottom: 'var(--space-sm)',
           }}>
             {poll.question}
           </h1>
 
+          {/* Description */}
           {poll.description && (
-            <p style={{
-              fontSize: 'var(--fs-base)', color: 'var(--text-secondary)',
-              lineHeight: 1.6, marginBottom: 'var(--space-md)',
-            }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--fs-base)', lineHeight: 1.6 }}>
               {poll.description}
             </p>
           )}
 
           {/* Meta info */}
           <div style={{
-            display: 'flex', gap: 'var(--space-lg)', flexWrap: 'wrap',
-            fontSize: 'var(--fs-xs)', color: 'var(--text-tertiary)',
+            display: 'flex', gap: 'var(--space-lg)', marginTop: 'var(--space-md)',
+            flexWrap: 'wrap',
           }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Tag size={12} /> {poll.poll_type || 'single'}
+            <span style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontSize: 'var(--fs-sm)', color: 'var(--text-tertiary)',
+            }}>
+              <Users size={14} /> {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
             </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Users size={12} /> {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
-            </span>
-            {poll.start_date && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Calendar size={12} /> Started {new Date(poll.start_date).toLocaleDateString()}
-              </span>
-            )}
             {poll.end_date && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Clock size={12} /> {poll.status === 'closed' ? 'Ended' : 'Ends'} {new Date(poll.end_date).toLocaleDateString()}
+              <span style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: 'var(--fs-sm)', color: 'var(--text-tertiary)',
+              }}>
+                <Calendar size={14} />
+                {poll.status === 'closed' ? 'Ended' : 'Ends'} {new Date(poll.end_date).toLocaleDateString()}
               </span>
             )}
           </div>
         </div>
+
+        {/* Login prompt for unauthenticated users */}
+        {!isAuthenticated && isActive && !showResults && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 'var(--space-md)',
+            padding: 'var(--space-md) var(--space-lg)',
+            background: 'rgba(99, 102, 241, 0.1)',
+            border: '1px solid rgba(99, 102, 241, 0.3)',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: 'var(--space-lg)',
+          }}>
+            <LogIn size={20} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
+              <Link to="/login" style={{ color: 'var(--accent-primary)', fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
+              {' '}or{' '}
+              <Link to="/register" style={{ color: 'var(--accent-primary)', fontWeight: 600, textDecoration: 'none' }}>create an account</Link>
+              {' '}to cast your vote.
+            </span>
+          </div>
+        )}
 
         {/* Voting / Results Section */}
         {showResults ? (
@@ -243,53 +266,39 @@ export default function PollDetailPage() {
               {options.map((option, i) => {
                 const optionId = option.id !== undefined ? option.id : i;
                 const isCurrentlyVoting = voting && selectedOption === optionId;
+                const canVote = isAuthenticated && isActive && !hasVoted && !voting;
 
                 return (
                   <button
                     key={i}
                     onClick={() => handleVote(optionId)}
-                    disabled={voting}
+                    disabled={!canVote}
                     style={{
                       padding: 'var(--space-md) var(--space-lg)',
                       background: 'var(--bg-secondary)',
                       border: '2px solid var(--border-subtle)',
                       borderRadius: 'var(--radius-md)',
                       textAlign: 'left',
-                      cursor: voting ? 'wait' : 'pointer',
-                      opacity: voting && !isCurrentlyVoting ? 0.5 : 1,
+                      cursor: canVote ? 'pointer' : 'default',
+                      opacity: (voting && !isCurrentlyVoting) || !isAuthenticated ? 0.6 : 1,
                       transition: 'all var(--transition-fast)',
+                      color: 'var(--text-primary)',
                       fontSize: 'var(--fs-base)',
                       fontWeight: 500,
-                      color: 'var(--text-primary)',
-                      display: 'flex', alignItems: 'center', gap: 'var(--space-sm)',
                     }}
-                    onMouseEnter={(e) => {
-                      if (!voting) {
-                        e.currentTarget.style.borderColor = 'var(--accent-primary)';
-                        e.currentTarget.style.background = 'var(--accent-primary-dim, rgba(99,102,241,0.1))';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                      e.currentTarget.style.background = 'var(--bg-secondary)';
-                    }}
+                    onMouseEnter={(e) => { if (canVote) e.currentTarget.style.borderColor = 'var(--accent-primary)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
                   >
-                    {/* Radio-style indicator */}
-                    <span style={{
-                      width: 20, height: 20, borderRadius: '50%',
-                      border: '2px solid var(--border-subtle)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {isCurrentlyVoting && (
                         <span style={{
-                          width: 10, height: 10, borderRadius: '50%',
-                          background: 'var(--accent-primary)',
-                          animation: 'pulse 0.6s ease-in-out infinite alternate',
+                          width: 16, height: 16, border: '2px solid var(--accent-primary)',
+                          borderTopColor: 'transparent', borderRadius: '50%',
+                          animation: 'spin 0.6s linear infinite', display: 'inline-block',
                         }} />
                       )}
+                      {option.text || option.label}
                     </span>
-                    {option.text || option.label}
                   </button>
                 );
               })}
@@ -297,48 +306,22 @@ export default function PollDetailPage() {
           </div>
         )}
 
-        {/* Voted confirmation banner */}
-        {hasVoted && (
+        {/* Toast */}
+        {toastMsg && (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            marginTop: 'var(--space-md)', padding: 'var(--space-sm) var(--space-md)',
-            background: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
-            borderRadius: 'var(--radius-md)',
-            fontSize: 'var(--fs-sm)', color: 'var(--accent-success)',
-            fontWeight: 500,
+            position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+            padding: 'var(--space-sm) var(--space-lg)',
+            background: toastMsg.isError ? 'var(--live)' : 'var(--accent-success)',
+            color: '#fff', borderRadius: 'var(--radius-md)',
+            fontSize: 'var(--fs-sm)', fontWeight: 600,
+            zIndex: 9999, boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
           }}>
-            <CheckCircle size={16} />
-            You have voted on this poll
+            {toastMsg.message}
           </div>
         )}
+
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
-
-      {/* Toast */}
-      {toastMsg && (
-        <div style={{
-          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-          padding: 'var(--space-sm) var(--space-lg)',
-          background: toastMsg.isError ? 'var(--accent-danger, #ef4444)' : 'var(--accent-success, #10b981)',
-          color: '#fff', borderRadius: 'var(--radius-md)',
-          fontSize: 'var(--fs-sm)', fontWeight: 600,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-          zIndex: 9999, animation: 'slideUp 0.3s ease-out',
-        }}>
-          {toastMsg.message}
-        </div>
-      )}
-
-      <style>{`
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-          to { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-        @keyframes pulse {
-          from { opacity: 0.5; }
-          to { opacity: 1; }
-        }
-      `}</style>
     </div>
   );
 }

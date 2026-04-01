@@ -1,7 +1,14 @@
-
+// ============================================
+// src/controllers/pollsController.js
+// ============================================
+// UPDATED: vote() now uses req.user.user_id from JWT auth middleware
+//          instead of req.body.user_id (anonymous).
+//          getResults uses fn_get_poll_stats database function.
+// ============================================
 
 const PollModel = require('../models/pollModel');
 const PollVoteModel = require('../models/pollVoteModel');
+const db = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { getPagination, paginate } = require('../utils/pagination');
@@ -45,11 +52,12 @@ exports.remove = asyncHandler(async (req, res) => {
 });
 
 // ── Vote on a poll (POST /polls/:id/votes) ──
+// REQUIRES AUTH: user_id comes from req.user (JWT), not req.body
 exports.vote = asyncHandler(async (req, res) => {
   const pollId = parseInt(req.params.id);
-  const { user_id, selected_options, ip_hash } = req.body;
+  const userId = String(req.user.user_id); // From JWT auth middleware
+  const { selected_options, ip_hash } = req.body;
 
-  if (!user_id) throw ApiError.badRequest('user_id is required');
   if (!selected_options || !Array.isArray(selected_options) || selected_options.length === 0) {
     throw ApiError.badRequest('At least 1 option must be selected');
   }
@@ -65,7 +73,7 @@ exports.vote = asyncHandler(async (req, res) => {
   }
 
   // Check if user already voted
-  const existing = await PollVoteModel.getByUser(pollId, user_id);
+  const existing = await PollVoteModel.getByUser(pollId, userId);
   if (existing) throw ApiError.conflict('You have already voted on this poll');
 
   // Validate selected options exist in poll options
@@ -80,16 +88,15 @@ exports.vote = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('This poll allows only 1 selection');
   }
 
-  // Create the vote
+  // Create the vote using stored procedure (sp_cast_poll_vote)
+  // The procedure handles: insert vote, update option counts, increment total
+  // All within explicit transaction control (BEGIN/COMMIT/ROLLBACK in model)
   const vote = await PollVoteModel.create({
     poll_id: pollId,
-    user_id,
+    user_id: userId,
     selected_options,
     ip_hash: ip_hash || null,
   });
-
-  // Update option vote counts in the poll's options JSONB
-  await PollModel.incrementOptionVotes(pollId, selected_options);
 
   // Fetch the updated poll to return fresh data
   const updatedPoll = await PollModel.getById(pollId);
@@ -97,40 +104,32 @@ exports.vote = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: { vote, poll: updatedPoll } });
 });
 
-// ── Get poll results (GET /polls/:id/results) ──
+// ── Get poll results using database function fn_get_poll_stats ──
 exports.getResults = asyncHandler(async (req, res) => {
-  const poll = await PollModel.getById(req.params.id);
-  if (!poll) throw ApiError.notFound('Poll not found');
+  const pollId = parseInt(req.params.id);
 
-  const votes = await PollVoteModel.getByPoll(req.params.id);
-  const options = poll.options || [];
-  const totalVotes = poll.total_votes || 0;
+  // Use the database function for computed statistics
+  const statsResult = await db.query('SELECT * FROM fn_get_poll_stats($1)', [pollId]);
 
-  // Calculate results per option
-  const results = options.map((option, idx) => {
-    const optionId = option.id !== undefined ? option.id : idx;
-    const optionVotes = option.votes || 0;
-    const percent = totalVotes > 0 ? Math.round((optionVotes / totalVotes) * 100) : 0;
-    return {
-      ...option,
-      id: optionId,
-      votes: optionVotes,
-      percent,
-    };
-  });
+  if (statsResult.rows.length === 0) {
+    throw ApiError.notFound('Poll not found');
+  }
+
+  const firstRow = statsResult.rows[0];
+  const options = statsResult.rows.map(row => ({
+    id: row.option_id,
+    text: row.option_text,
+    votes: row.option_votes,
+    percent: parseFloat(row.vote_percent),
+  }));
 
   res.json({
     success: true,
     data: {
-      poll_id: poll.poll_id,
-      question: poll.question,
-      description: poll.description,
-      poll_type: poll.poll_type,
-      status: poll.status,
-      total_votes: totalVotes,
-      options: results,
-      start_date: poll.start_date,
-      end_date: poll.end_date,
+      poll_id: firstRow.poll_id,
+      question: firstRow.question,
+      total_votes: firstRow.total_votes,
+      options,
     },
   });
 });

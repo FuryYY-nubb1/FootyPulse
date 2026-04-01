@@ -1,3 +1,9 @@
+// ============================================
+// src/models/pollVoteModel.js
+// ============================================
+// UPDATED: Uses stored procedure sp_cast_poll_vote for voting
+//          with explicit transaction control (BEGIN/COMMIT/ROLLBACK)
+// ============================================
 
 const db = require('../config/db');
 
@@ -18,21 +24,55 @@ const PollVoteModel = {
     return result.rows[0];
   },
 
+  /**
+   * Cast a vote using the stored procedure sp_cast_poll_vote.
+   * Uses explicit transaction control: BEGIN → CALL → COMMIT / ROLLBACK.
+   * The procedure handles: validation, duplicate check, vote insert,
+   * option vote count update, and total_votes increment.
+   */
   async create(fields) {
-    // Use a transaction to create vote and increment poll count atomically
+    const client = await db.getClient();
+    try {
+      // Explicit transaction control
+      await client.query('BEGIN');
+
+      // Call the stored procedure
+      await client.query(
+        'CALL sp_cast_poll_vote($1, $2, $3, $4)',
+        [
+          fields.poll_id,
+          fields.user_id,
+          JSON.stringify(fields.selected_options),
+          fields.ip_hash || null,
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      // Fetch the newly created vote to return it
+      const voteResult = await db.query(
+        'SELECT * FROM poll_votes WHERE poll_id = $1 AND user_id = $2',
+        [fields.poll_id, fields.user_id]
+      );
+
+      return voteResult.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+
+  async delete(id) {
+    // Explicit transaction control for DELETE DML
     const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
       const result = await client.query(
-        `INSERT INTO poll_votes (poll_id, user_id, selected_options, ip_hash)
-         VALUES ($1, $2, $3, $4) RETURNING *`,
-        [fields.poll_id, fields.user_id, JSON.stringify(fields.selected_options), fields.ip_hash]
-      );
-
-      await client.query(
-        'UPDATE polls SET total_votes = total_votes + 1 WHERE poll_id = $1',
-        [fields.poll_id]
+        'DELETE FROM poll_votes WHERE vote_id = $1 RETURNING *',
+        [id]
       );
 
       await client.query('COMMIT');
@@ -43,11 +83,6 @@ const PollVoteModel = {
     } finally {
       client.release();
     }
-  },
-
-  async delete(id) {
-    const result = await db.query('DELETE FROM poll_votes WHERE vote_id = $1 RETURNING *', [id]);
-    return result.rows[0];
   },
 };
 

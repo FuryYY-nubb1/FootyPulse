@@ -1,12 +1,15 @@
 // ============================================
 // src/components/polls/PollCard.jsx
 // ============================================
+// UPDATED: Accepts `isAuthenticated` prop. Disables voting
+//          and shows "Sign in to vote" for unauthenticated users.
+// ============================================
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart3, CheckCircle, Clock, Lock, Users } from 'lucide-react';
+import { BarChart3, CheckCircle, Clock, Lock, Users, LogIn } from 'lucide-react';
 
-export default function PollCard({ poll, onVote, hasVoted, userSelection }) {
+export default function PollCard({ poll, onVote, hasVoted, userSelection, isAuthenticated = false }) {
   const [voting, setVoting] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
 
@@ -17,9 +20,10 @@ export default function PollCard({ poll, onVote, hasVoted, userSelection }) {
   const isActive = poll.status === 'active';
   const isClosed = poll.status === 'closed';
   const showResults = hasVoted || isClosed;
+  const canVote = isAuthenticated && isActive && !hasVoted && !voting;
 
   const handleVote = async (optionIdx) => {
-    if (!isActive || hasVoted || voting) return;
+    if (!canVote) return;
     setVoting(true);
     setSelectedOption(optionIdx);
     try {
@@ -101,7 +105,7 @@ export default function PollCard({ poll, onVote, hasVoted, userSelection }) {
             <button
               key={i}
               onClick={() => handleVote(optionId)}
-              disabled={!isActive || hasVoted || voting}
+              disabled={!canVote}
               style={{
                 position: 'relative',
                 padding: 'var(--space-sm) var(--space-md)',
@@ -110,9 +114,10 @@ export default function PollCard({ poll, onVote, hasVoted, userSelection }) {
                 borderRadius: 'var(--radius-md)',
                 textAlign: 'left',
                 overflow: 'hidden',
-                cursor: isActive && !hasVoted && !voting ? 'pointer' : 'default',
-                opacity: voting && !isCurrentlyVoting ? 0.6 : 1,
+                cursor: canVote ? 'pointer' : 'default',
+                opacity: (voting && !isCurrentlyVoting) || (!isAuthenticated && isActive && !showResults) ? 0.6 : 1,
                 transition: 'all var(--transition-fast)',
+                color: 'var(--text-primary)',
               }}
             >
               {/* Progress bar background */}
@@ -161,6 +166,18 @@ export default function PollCard({ poll, onVote, hasVoted, userSelection }) {
           );
         })}
       </div>
+
+      {/* Sign in to vote prompt */}
+      {!isAuthenticated && isActive && !showResults && (
+        <Link to="/login" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          padding: 'var(--space-xs) var(--space-md)',
+          fontSize: 'var(--fs-xs)', color: 'var(--accent-primary)',
+          textDecoration: 'none', fontWeight: 600,
+        }}>
+          <LogIn size={14} /> Sign in to vote
+        </Link>
+      )}
 
       {/* Footer */}
       <div style={{

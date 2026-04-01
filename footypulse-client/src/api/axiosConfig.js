@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
-  timeout: 30000, // increased from 15s → 30s to allow for Neon cold starts
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -27,10 +27,15 @@ api.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response;
 
+      // On 401: only redirect if NOT on the login/register page
+      // (login returns 401 for wrong password — we want to show the error, not redirect)
       if (status === 401) {
-        localStorage.removeItem('fp_token');
-        localStorage.removeItem('fp_user');
-        window.location.href = '/login';
+        const isAuthPage = window.location.pathname === '/login' || window.location.pathname === '/register';
+        if (!isAuthPage) {
+          localStorage.removeItem('fp_token');
+          localStorage.removeItem('fp_user');
+          window.location.href = '/login';
+        }
       }
 
       if (status === 429) {
