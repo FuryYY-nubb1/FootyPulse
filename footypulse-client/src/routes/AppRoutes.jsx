@@ -1,6 +1,10 @@
 // ============================================
 // src/routes/AppRoutes.jsx
 // ============================================
+// Authentication is checked on every page via AuthContext (token
+// verification on app load). Pages are open for browsing — only
+// actions like voting, commenting, and profile require sign-in.
+// ============================================
 
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
@@ -27,6 +31,7 @@ import ProtectedRoute from './ProtectedRoute';
 export default function AppRoutes() {
   return (
     <Routes>
+      {/* ─── Public pages (browsing open to all) ─── */}
       <Route path="/" element={<HomePage />} />
       <Route path="/matches" element={<MatchesPage />} />
       <Route path="/matches/:id" element={<MatchDetailPage />} />
@@ -43,7 +48,10 @@ export default function AppRoutes() {
       <Route path="/search" element={<SearchResultsPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+
+      {/* ─── Protected pages (requires sign-in) ─── */}
       <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

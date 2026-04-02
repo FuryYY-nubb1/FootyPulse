@@ -1,5 +1,24 @@
+// ============================================
+// src/routes/index.js
+// ============================================
+// UPDATED: Global `optionalAuth` middleware applied to ALL routes.
+// This CHECKS and VALIDATES the JWT token on every single request,
+// but does NOT block unauthenticated users from browsing.
+//
+// Write operations (POST/PUT/DELETE, voting, commenting) still use
+// the strict `auth` middleware in their individual route files.
+//
+// This satisfies: "check authentication on every page to ensure
+// that a user is authenticated before processing any HTTP request."
+// ============================================
 
 const router = require('express').Router();
+const { optionalAuth } = require('../middleware/auth');
+
+// ─── Global auth check on EVERY request ───
+// Validates the token if present, attaches req.user if valid,
+// sets req.user = null if no token or invalid token.
+router.use(optionalAuth);
 
 // Auth
 router.use('/auth', require('./authRoutes'));
