@@ -1,7 +1,17 @@
+// ============================================
+// src/models/competitionModel.js
+// ============================================
+// UPDATED: All DML operations (create, update, delete) use
+//          explicit transaction control (BEGIN/COMMIT/ROLLBACK).
+//          Added setupSeason() that calls sp_setup_competition_season procedure.
+//          Added getOverview() that calls fn_get_competition_overview function.
+// ============================================
 
 const db = require('../config/db');
 
 const CompetitionModel = {
+  // ── READ operations (no transaction needed) ──
+
   async getAll(limit = 20, offset = 0, filters = {}) {
     let query = `
       SELECT comp.*, c.name AS country_name
@@ -40,32 +50,88 @@ const CompetitionModel = {
     return result.rows[0];
   },
 
+  // ════════════════════════════════════════════════════════════════
+  // DML OPERATIONS — All use explicit transaction control
+  // ════════════════════════════════════════════════════════════════
+
+  /**
+   * Create a competition with explicit transaction control.
+   * BEGIN → INSERT competition → COMMIT / ROLLBACK
+   */
   async create(fields) {
-    const result = await db.query(
-      `INSERT INTO competitions (name, short_name, competition_type, country_id, level, season_format, logo_url)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [fields.name, fields.short_name, fields.competition_type, fields.country_id,
-       fields.level, fields.season_format, fields.logo_url]
-    );
-    return result.rows[0];
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        `INSERT INTO competitions (name, short_name, competition_type, country_id, level, season_format, logo_url)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [fields.name, fields.short_name, fields.competition_type, fields.country_id,
+         fields.level, fields.season_format, fields.logo_url]
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
+  /**
+   * Update a competition with explicit transaction control.
+   * BEGIN → UPDATE competition → COMMIT / ROLLBACK
+   */
   async update(id, fields) {
-    const result = await db.query(
-      `UPDATE competitions
-       SET name = COALESCE($1, name), short_name = COALESCE($2, short_name),competition_type = COALESCE($3, competition_type), country_id = COALESCE($4, country_id),
-      level = COALESCE($5, level), season_format = COALESCE($6, season_format),
-      logo_url = COALESCE($7, logo_url)
-       WHERE competition_id = $8 RETURNING *`,
-      [fields.name, fields.short_name, fields.competition_type, fields.country_id,
-       fields.level, fields.season_format, fields.logo_url, id]
-    );
-    return result.rows[0];
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        `UPDATE competitions
+         SET name = COALESCE($1, name), short_name = COALESCE($2, short_name),
+             competition_type = COALESCE($3, competition_type), country_id = COALESCE($4, country_id),
+             level = COALESCE($5, level), season_format = COALESCE($6, season_format),
+             logo_url = COALESCE($7, logo_url)
+         WHERE competition_id = $8 RETURNING *`,
+        [fields.name, fields.short_name, fields.competition_type, fields.country_id,
+         fields.level, fields.season_format, fields.logo_url, id]
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
+  /**
+   * Delete a competition with explicit transaction control.
+   * BEGIN → DELETE competition → COMMIT / ROLLBACK
+   */
   async delete(id) {
-    const result = await db.query('DELETE FROM competitions WHERE competition_id = $1 RETURNING *', [id]);
-    return result.rows[0];
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        'DELETE FROM competitions WHERE competition_id = $1 RETURNING *',
+        [id]
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
   async getCount(filters = {}) {
@@ -74,6 +140,98 @@ const CompetitionModel = {
     if (filters.competition_type) { query += ' WHERE competition_type = $1'; values.push(filters.competition_type); }
     const result = await db.query(query, values);
     return parseInt(result.rows[0].count);
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // PROCEDURE CALL — sp_setup_competition_season
+  // Multi-step: deactivate old seasons → create new season → create standings
+  // ════════════════════════════════════════════════════════════════
+
+  /**
+   * Set up a new season for a competition using the stored procedure.
+   * Uses explicit transaction control: BEGIN → CALL procedure → COMMIT / ROLLBACK.
+   * The procedure handles:
+   *   1. Validate competition exists
+   *   2. Mark all existing seasons as non-current
+   *   3. Create the new season (is_current = true)
+   *   4. Create initial standings rows for all provided teams
+   */
+  async setupSeason(competitionId, seasonName, startDate, endDate, teamIds, groupName = null) {
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      await client.query(
+        'CALL sp_setup_competition_season($1, $2, $3, $4, $5, $6)',
+        [competitionId, seasonName, startDate, endDate, teamIds, groupName]
+      );
+
+      await client.query('COMMIT');
+
+      // Return the newly created season with standings
+      const seasonResult = await db.query(
+        `SELECT s.*, comp.name AS competition_name
+         FROM seasons s
+         JOIN competitions comp ON s.competition_id = comp.competition_id
+         WHERE s.competition_id = $1 AND s.is_current = true
+         ORDER BY s.start_date DESC LIMIT 1`,
+        [competitionId]
+      );
+
+      const season = seasonResult.rows[0];
+
+      if (season) {
+        const standingsResult = await db.query(
+          `SELECT st.*, t.name AS team_name, t.short_name, t.logo_url AS team_logo
+           FROM standings st
+           JOIN teams t ON st.team_id = t.team_id
+           WHERE st.season_id = $1
+           ORDER BY st.position`,
+          [season.season_id]
+        );
+        season.standings = standingsResult.rows;
+      }
+
+      return season;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // FUNCTION CALL — fn_get_competition_overview
+  // ════════════════════════════════════════════════════════════════
+
+  /**
+   * Get comprehensive competition overview using the database function.
+   * Returns: total seasons, current season info, team count, match count,
+   * goals, articles, and league leader.
+   */
+  async getOverview(competitionId) {
+    const result = await db.query(
+      'SELECT * FROM fn_get_competition_overview($1)',
+      [competitionId]
+    );
+    return result.rows[0] || null;
+  },
+
+  /**
+   * Get audit log (from shadow table populated by trigger)
+   */
+  async getAuditLog(competitionId = null, limit = 50) {
+    let query = 'SELECT * FROM competition_audit';
+    const values = [];
+    if (competitionId) {
+      query += ' WHERE competition_id = $1';
+      values.push(competitionId);
+    }
+    query += ' ORDER BY performed_at DESC LIMIT $' + (values.length + 1);
+    values.push(limit);
+    const result = await db.query(query, values);
+    return result.rows;
   },
 };
 

@@ -1,10 +1,19 @@
-
+// ============================================
+// src/controllers/competitionsController.js
+// ============================================
+// UPDATED: Added endpoints that use:
+//   - Stored Procedure: sp_setup_competition_season (POST /competitions/:id/setup-season)
+//   - Database Function: fn_get_competition_overview (GET /competitions/:id/overview)
+//   - Audit log from shadow table (GET /competitions/audit)
+// ============================================
 
 const CompetitionModel = require('../models/competitionModel');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { getPagination, paginate } = require('../utils/pagination');
 const db = require('../config/db');
+
+// ── Standard CRUD ──
 
 exports.getAll = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPagination(req.query);
@@ -127,8 +136,7 @@ exports.getScorers = asyncHandler(async (req, res) => {
      JOIN persons p ON me.person_id = p.person_id
      JOIN contracts c ON c.person_id = p.person_id AND c.is_current = true
      JOIN teams t ON c.team_id = t.team_id
-     WHERE m.season_id = $1
-       AND me.event_type IN ('goal', 'penalty')
+     WHERE m.season_id = $1 AND me.event_type IN ('goal', 'penalty')
      GROUP BY p.person_id, p.display_name, p.photo_url, t.name, t.logo_url
      ORDER BY goals DESC
      LIMIT $2`,
@@ -144,28 +152,26 @@ exports.getScorers = asyncHandler(async (req, res) => {
      JOIN persons p ON me.related_person_id = p.person_id
      JOIN contracts c ON c.person_id = p.person_id AND c.is_current = true
      JOIN teams t ON c.team_id = t.team_id
-     WHERE m.season_id = $1
-       AND me.event_type IN ('goal', 'penalty')
-       AND me.related_person_id IS NOT NULL
+     WHERE m.season_id = $1 AND me.event_type IN ('goal', 'penalty') AND me.related_person_id IS NOT NULL
      GROUP BY p.person_id, p.display_name, p.photo_url, t.name, t.logo_url
      ORDER BY assists DESC
      LIMIT $2`,
     [sid, limitVal]
   );
 
-  const redCardsQuery = await db.query(
+  const cardsQuery = await db.query(
     `SELECT p.person_id AS player_id, p.display_name AS player_name, p.photo_url AS photo,
             t.name AS team_name, t.logo_url AS team_logo,
-            COUNT(*) AS red_cards
+            COUNT(*) FILTER (WHERE me.event_type = 'yellow') AS yellows,
+            COUNT(*) FILTER (WHERE me.event_type = 'red') AS reds
      FROM match_events me
      JOIN matches m ON me.match_id = m.match_id
      JOIN persons p ON me.person_id = p.person_id
      JOIN contracts c ON c.person_id = p.person_id AND c.is_current = true
      JOIN teams t ON c.team_id = t.team_id
-     WHERE m.season_id = $1
-       AND me.event_type IN ('red', 'second_yellow')
+     WHERE m.season_id = $1 AND me.event_type IN ('yellow', 'red', 'second_yellow')
      GROUP BY p.person_id, p.display_name, p.photo_url, t.name, t.logo_url
-     ORDER BY red_cards DESC
+     ORDER BY reds DESC, yellows DESC
      LIMIT $2`,
     [sid, limitVal]
   );
@@ -175,14 +181,12 @@ exports.getScorers = asyncHandler(async (req, res) => {
     data: {
       scorers: scorersQuery.rows,
       assists: assistsQuery.rows,
-      redCards: redCardsQuery.rows,
+      redCards: cardsQuery.rows,
     },
   });
 });
 
 // ── GET /competitions/:id/news ──
-// FIXED: Uses correct schema columns (media, view_count, author_name)
-//        Also finds articles linked via teams that play in this competition
 exports.getNews = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { limit: queryLimit } = req.query;
@@ -245,4 +249,73 @@ exports.remove = asyncHandler(async (req, res) => {
   const competition = await CompetitionModel.delete(req.params.id);
   if (!competition) throw ApiError.notFound('Competition not found');
   res.json({ success: true, message: 'Competition deleted' });
+});
+
+// ════════════════════════════════════════════════════════════════
+// NEW: Stored Procedure — Set up competition season
+// POST /competitions/:id/setup-season
+// Uses sp_setup_competition_season which handles:
+//   1. Validate competition exists
+//   2. Mark all existing seasons as non-current
+//   3. Create new season (is_current = true)
+//   4. Create initial standings for all provided teams
+// All in one transaction with explicit BEGIN/COMMIT/ROLLBACK
+// ════════════════════════════════════════════════════════════════
+
+exports.setupSeason = asyncHandler(async (req, res) => {
+  const competitionId = parseInt(req.params.id);
+  const { season_name, start_date, end_date, team_ids, group_name } = req.body;
+
+  // Validate required fields
+  if (!season_name || !start_date || !end_date) {
+    throw ApiError.badRequest('season_name, start_date, and end_date are required');
+  }
+  if (!team_ids || !Array.isArray(team_ids) || team_ids.length === 0) {
+    throw ApiError.badRequest('team_ids array is required and must not be empty');
+  }
+
+  const season = await CompetitionModel.setupSeason(
+    competitionId,
+    season_name,
+    start_date,
+    end_date,
+    team_ids,
+    group_name || null
+  );
+
+  res.status(201).json({
+    success: true,
+    message: `Season "${season_name}" created with ${team_ids.length} teams. Standings initialized.`,
+    data: season,
+  });
+});
+
+// ════════════════════════════════════════════════════════════════
+// NEW: Database Function — Competition overview
+// GET /competitions/:id/overview
+// Uses fn_get_competition_overview for computed statistics
+// ════════════════════════════════════════════════════════════════
+
+exports.getOverview = asyncHandler(async (req, res) => {
+  const competitionId = parseInt(req.params.id);
+  const overview = await CompetitionModel.getOverview(competitionId);
+
+  if (!overview) {
+    throw ApiError.notFound('Competition not found');
+  }
+
+  res.json({ success: true, data: overview });
+});
+
+// ════════════════════════════════════════════════════════════════
+// NEW: Audit log from shadow table (populated by trigger)
+// GET /competitions/audit
+// GET /competitions/audit/:competitionId
+// ════════════════════════════════════════════════════════════════
+
+exports.getAuditLog = asyncHandler(async (req, res) => {
+  const competitionId = req.params.competitionId ? parseInt(req.params.competitionId) : null;
+  const limit = parseInt(req.query.limit) || 50;
+  const audit = await CompetitionModel.getAuditLog(competitionId, limit);
+  res.json({ success: true, data: audit });
 });

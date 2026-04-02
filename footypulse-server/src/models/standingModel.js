@@ -1,10 +1,19 @@
+// ============================================
+// src/models/standingModel.js
+// ============================================
+// UPDATED: All DML operations (create, update, delete, createBulk)
+//          use explicit transaction control (BEGIN/COMMIT/ROLLBACK).
+// ============================================
 
 const db = require('../config/db');
 
 const StandingModel = {
+  // ── READ operations (no transaction needed) ──
+
   async getBySeason(seasonId, groupName = null) {
     let query = `
-      SELECT st.*, t.name AS team_name,t.short_name,t.logo_url AS team_logo,comp.name AS competition_name
+      SELECT st.*, t.name AS team_name, t.short_name, t.logo_url AS team_logo,
+             comp.name AS competition_name
       FROM standings st
       JOIN teams t ON st.team_id = t.team_id
       JOIN seasons s ON st.season_id = s.season_id
@@ -36,55 +45,123 @@ const StandingModel = {
     return result.rows[0];
   },
 
+  // ── DML operations with explicit transaction control ──
+
+  /**
+   * Create a standing with explicit transaction control.
+   * BEGIN → INSERT standing → COMMIT / ROLLBACK
+   */
   async create(fields) {
-    const result = await db.query(
-      `INSERT INTO standings (season_id, group_name, team_id, position, played,
-                              won, drawn, lost, goals_for, goals_against, points, form)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [fields.season_id, fields.group_name, fields.team_id, fields.position,
-       fields.played || 0, fields.won || 0, fields.drawn || 0, fields.lost || 0,
-       fields.goals_for || 0, fields.goals_against || 0, fields.points || 0, fields.form]
-    );
-    return result.rows[0];
-  },
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
 
-  async update(id, fields) {
-    const result = await db.query(
-      `UPDATE standings
-       SET position = COALESCE($1, position), played = COALESCE($2, played),
-           won = COALESCE($3, won), drawn = COALESCE($4, drawn),
-           lost = COALESCE($5, lost), goals_for = COALESCE($6, goals_for),
-           goals_against = COALESCE($7, goals_against), points = COALESCE($8, points),
-           form = COALESCE($9, form)
-       WHERE standing_id = $10
-       RETURNING *`,
-      [fields.position, fields.played, fields.won, fields.drawn,
-       fields.lost, fields.goals_for, fields.goals_against, fields.points,
-       fields.form, id]
-    );
-    return result.rows[0];
-  },
-
-  async delete(id) {
-    const result = await db.query(
-      'DELETE FROM standings WHERE standing_id = $1 RETURNING *', [id]
-    );
-    return result.rows[0];
-  },
-
-  async createBulk(seasonId, teamIds, groupName) {
-    const results = [];
-    for (let i = 0; i < teamIds.length; i++) {
-      const r = await db.query(
-        `INSERT INTO standings (season_id, group_name, team_id, position, played, won, drawn, lost, goals_for, goals_against, points)
-         VALUES ($1, $2, $3, $4, 0, 0, 0, 0, 0, 0, 0)
-         ON CONFLICT (season_id, group_name, team_id) DO NOTHING
-         RETURNING *`,
-        [seasonId, groupName || null, teamIds[i], i + 1]
+      const result = await client.query(
+        `INSERT INTO standings (season_id, group_name, team_id, position, played,
+                                won, drawn, lost, goals_for, goals_against, points, form)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+        [fields.season_id, fields.group_name, fields.team_id, fields.position,
+         fields.played || 0, fields.won || 0, fields.drawn || 0, fields.lost || 0,
+         fields.goals_for || 0, fields.goals_against || 0, fields.points || 0, fields.form]
       );
-      if (r.rows[0]) results.push(r.rows[0]);
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-    return results;
+  },
+
+  /**
+   * Update a standing with explicit transaction control.
+   * BEGIN → UPDATE standing → COMMIT / ROLLBACK
+   */
+  async update(id, fields) {
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        `UPDATE standings
+         SET position = COALESCE($1, position), played = COALESCE($2, played),
+             won = COALESCE($3, won), drawn = COALESCE($4, drawn),
+             lost = COALESCE($5, lost), goals_for = COALESCE($6, goals_for),
+             goals_against = COALESCE($7, goals_against), points = COALESCE($8, points),
+             form = COALESCE($9, form)
+         WHERE standing_id = $10
+         RETURNING *`,
+        [fields.position, fields.played, fields.won, fields.drawn,
+         fields.lost, fields.goals_for, fields.goals_against, fields.points,
+         fields.form, id]
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+
+  /**
+   * Delete a standing with explicit transaction control.
+   * BEGIN → DELETE standing → COMMIT / ROLLBACK
+   */
+  async delete(id) {
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        'DELETE FROM standings WHERE standing_id = $1 RETURNING *',
+        [id]
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+
+  /**
+   * Bulk create standings with explicit transaction control.
+   * BEGIN → INSERT multiple standings → COMMIT / ROLLBACK
+   * If any insert fails, the entire batch is rolled back.
+   */
+  async createBulk(seasonId, teamIds, groupName) {
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      const results = [];
+      for (let i = 0; i < teamIds.length; i++) {
+        const r = await client.query(
+          `INSERT INTO standings (season_id, group_name, team_id, position, played, won, drawn, lost, goals_for, goals_against, points)
+           VALUES ($1, $2, $3, $4, 0, 0, 0, 0, 0, 0, 0)
+           ON CONFLICT (season_id, group_name, team_id) DO NOTHING
+           RETURNING *`,
+          [seasonId, groupName || null, teamIds[i], i + 1]
+        );
+        if (r.rows[0]) results.push(r.rows[0]);
+      }
+
+      await client.query('COMMIT');
+      return results;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 };
 

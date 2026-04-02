@@ -1,24 +1,32 @@
-
+// ============================================
+// src/models/matchEventModel.js
+// ============================================
+// UPDATED: All DML operations (create, update, delete) use
+//          explicit transaction control (BEGIN/COMMIT/ROLLBACK).
+// ============================================
 
 const db = require('../config/db');
 
 const MatchEventModel = {
+  // ── READ operations (no transaction needed) ──
+
   async getByMatch(matchId) {
     const result = await db.query(
       `SELECT me.*,
-      p.display_name AS player_name,
-       rp.display_name AS related_player_name,
-         rp.display_name AS assist_name,
-       t.name AS team_name,
-     t.short_name AS team_short,
-       CASE
-       WHEN me.team_id = m.home_team_id THEN 'home'
-       WHEN me.team_id = m.away_team_id THEN 'away'
-      ELSE 'unknown'
-       END AS team_side,
-       CASE
-       WHEN me.team_id = m.home_team_id THEN true
-   ELSE false END AS is_home
+              p.display_name AS player_name,
+              rp.display_name AS related_player_name,
+              rp.display_name AS assist_name,
+              t.name AS team_name,
+              t.short_name AS team_short,
+              CASE
+                WHEN me.team_id = m.home_team_id THEN 'home'
+                WHEN me.team_id = m.away_team_id THEN 'away'
+                ELSE 'unknown'
+              END AS team_side,
+              CASE
+                WHEN me.team_id = m.home_team_id THEN true
+                ELSE false
+              END AS is_home
        FROM match_events me
        JOIN matches m ON me.match_id = m.match_id
        LEFT JOIN persons p ON me.person_id = p.person_id
@@ -59,34 +67,87 @@ const MatchEventModel = {
     return result.rows[0];
   },
 
+  // ── DML operations with explicit transaction control ──
+
+  /**
+   * Create a match event with explicit transaction control.
+   * BEGIN → INSERT event → COMMIT / ROLLBACK
+   */
   async create(fields) {
-    const result = await db.query(
-      `INSERT INTO match_events (match_id, event_type, team_id, person_id,
-                                  related_person_id, minute, added_time, description)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [fields.match_id, fields.event_type, fields.team_id, fields.person_id,
-       fields.related_person_id, fields.minute, fields.added_time, fields.description]
-    );
-    return result.rows[0];
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        `INSERT INTO match_events (match_id, event_type, team_id, person_id,
+                                    related_person_id, minute, added_time, description)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [fields.match_id, fields.event_type, fields.team_id, fields.person_id,
+         fields.related_person_id, fields.minute, fields.added_time, fields.description]
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
+  /**
+   * Update a match event with explicit transaction control.
+   * BEGIN → UPDATE event → COMMIT / ROLLBACK
+   */
   async update(id, fields) {
-    const result = await db.query(
-      `UPDATE match_events
-       SET event_type = COALESCE($1, event_type), team_id = COALESCE($2, team_id),
-           person_id = COALESCE($3, person_id), related_person_id = COALESCE($4, related_person_id),
-           minute = COALESCE($5, minute), added_time = COALESCE($6, added_time),
-           description = COALESCE($7, description)
-       WHERE event_id = $8 RETURNING *`,
-      [fields.event_type, fields.team_id, fields.person_id, fields.related_person_id,
-       fields.minute, fields.added_time, fields.description, id]
-    );
-    return result.rows[0];
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        `UPDATE match_events
+         SET event_type = COALESCE($1, event_type), team_id = COALESCE($2, team_id),
+             person_id = COALESCE($3, person_id), related_person_id = COALESCE($4, related_person_id),
+             minute = COALESCE($5, minute), added_time = COALESCE($6, added_time),
+             description = COALESCE($7, description)
+         WHERE event_id = $8 RETURNING *`,
+        [fields.event_type, fields.team_id, fields.person_id, fields.related_person_id,
+         fields.minute, fields.added_time, fields.description, id]
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
+  /**
+   * Delete a match event with explicit transaction control.
+   * BEGIN → DELETE event → COMMIT / ROLLBACK
+   */
   async delete(id) {
-    const result = await db.query('DELETE FROM match_events WHERE event_id = $1 RETURNING *', [id]);
-    return result.rows[0];
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        'DELETE FROM match_events WHERE event_id = $1 RETURNING *',
+        [id]
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 };
 
