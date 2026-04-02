@@ -1,3 +1,8 @@
+// ============================================
+// src/controllers/achievementsController.js
+// ============================================
+// UPDATED: Added getMostDecorated() → complex query
+// ============================================
 
 const AchievementModel = require('../models/achievementModel');
 const asyncHandler = require('../utils/asyncHandler');
@@ -41,4 +46,24 @@ exports.remove = asyncHandler(async (req, res) => {
   const achievement = await AchievementModel.delete(req.params.id);
   if (!achievement) throw ApiError.notFound('Achievement not found');
   res.json({ success: true, message: 'Achievement deleted' });
+});
+
+// ════════════════════════════════════════════════════════════════
+// NEW: Complex Query — Most decorated players or teams
+// GET /achievements/most-decorated?type=player&major_only=true&limit=20
+// GET /achievements/most-decorated?type=team&major_only=true&limit=20
+// Multi-table join + aggregation across achievements, persons/teams, competitions
+// ════════════════════════════════════════════════════════════════
+
+exports.getMostDecorated = asyncHandler(async (req, res) => {
+  const type = req.query.type || 'player';
+  const majorOnly = req.query.major_only !== 'false';
+  const limit = parseInt(req.query.limit) || 20;
+
+  if (!['player', 'team'].includes(type)) {
+    throw ApiError.badRequest('type must be "player" or "team"');
+  }
+
+  const decorated = await AchievementModel.getMostDecorated(type, majorOnly, limit);
+  res.json({ success: true, data: decorated });
 });

@@ -1,58 +1,72 @@
-
 const db = require('../config/db');
 
 const CountryModel = {
   async getAll() {
-    const result = await db.query(
-      'SELECT * FROM countries ORDER BY name'
-    );
+    const result = await db.query('SELECT * FROM countries ORDER BY name');
     return result.rows;
   },
 
   async getById(id) {
-    const result = await db.query(
-      'SELECT * FROM countries WHERE country_id = $1',
-      [id]
-    );
+    const result = await db.query('SELECT * FROM countries WHERE country_id = $1', [id]);
     return result.rows[0];
   },
 
   async getByCode(code) {
-    const result = await db.query(
-      'SELECT * FROM countries WHERE code = $1',
-      [code]
-    );
+    const result = await db.query('SELECT * FROM countries WHERE code = $1', [code]);
     return result.rows[0];
   },
 
   async create({ name, code, flag_url, confederation }) {
-    const result = await db.query(
-      `INSERT INTO countries (name, code, flag_url, confederation)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [name, code, flag_url, confederation]
-    );
-    return result.rows[0];
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        'INSERT INTO countries (name, code, flag_url, confederation) VALUES ($1,$2,$3,$4) RETURNING *',
+        [name, code, flag_url, confederation]
+      );
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
   async update(id, fields) {
-    const result = await db.query(
-      `UPDATE countries
-       SET name = COALESCE($1, name),
-           code = COALESCE($2, code),
-           flag_url = COALESCE($3, flag_url),
-           confederation = COALESCE($4, confederation)
-       WHERE country_id = $5 RETURNING *`,
-      [fields.name, fields.code, fields.flag_url, fields.confederation, id]
-    );
-    return result.rows[0];
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `UPDATE countries SET name = COALESCE($1, name), code = COALESCE($2, code),
+         flag_url = COALESCE($3, flag_url), confederation = COALESCE($4, confederation)
+         WHERE country_id = $5 RETURNING *`,
+        [fields.name, fields.code, fields.flag_url, fields.confederation, id]
+      );
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
   async delete(id) {
-    const result = await db.query(
-      'DELETE FROM countries WHERE country_id = $1 RETURNING *',
-      [id]
-    );
-    return result.rows[0];
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query('DELETE FROM countries WHERE country_id = $1 RETURNING *', [id]);
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
   async getCount() {

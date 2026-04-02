@@ -1,4 +1,9 @@
-
+// ============================================
+// src/controllers/contractsController.js
+// ============================================
+// UPDATED: Added getExpiring() → complex query for expiring contracts.
+//   Trigger trg_validate_contract handles overlap validation in PostgreSQL.
+// ============================================
 
 const ContractModel = require('../models/contractModel');
 const asyncHandler = require('../utils/asyncHandler');
@@ -41,4 +46,17 @@ exports.remove = asyncHandler(async (req, res) => {
   const contract = await ContractModel.delete(req.params.id);
   if (!contract) throw ApiError.notFound('Contract not found');
   res.json({ success: true, message: 'Contract deleted' });
+});
+
+// ════════════════════════════════════════════════════════════════
+// NEW: Complex Query — Expiring contracts
+// GET /contracts/expiring?months=6&limit=50
+// Multi-table join: contracts → persons → teams → countries
+// ════════════════════════════════════════════════════════════════
+
+exports.getExpiring = asyncHandler(async (req, res) => {
+  const months = parseInt(req.query.months) || 6;
+  const limit = parseInt(req.query.limit) || 50;
+  const contracts = await ContractModel.getExpiring(months, limit);
+  res.json({ success: true, data: contracts });
 });
