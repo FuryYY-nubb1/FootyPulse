@@ -126,11 +126,22 @@ function PitchMarkings() {
   );
 }
 
+// ═══════════════════════════════════════════
+// HALF PITCH (FIX: mirror away team x-axis)
+// ═══════════════════════════════════════════
 function HalfPitch({ players, isHome, events }) {
   const positioned = computePositions(players.filter(p => p.is_starter));
+
+  // FIX: For away team (right half), mirror the x-coordinate
+  // so their GK is near the right goal and forwards are near center line.
+  // Without this, away forwards (high x like 85%) appear near their own goal.
+  const finalPositions = isHome
+    ? positioned
+    : positioned.map(p => ({ ...p, px: 100 - p.px }));
+
   return (
     <div style={{ position: 'relative', width: '50%', height: '100%' }}>
-      {positioned.map((p, i) => <PitchPlayer key={p.person_id || i} player={p} isHome={isHome} events={events} />)}
+      {finalPositions.map((p, i) => <PitchPlayer key={p.person_id || i} player={p} isHome={isHome} events={events} />)}
     </div>
   );
 }
@@ -169,15 +180,11 @@ function ListPlayerRow({ player, events, isAlt }) {
   const number = player.jersey_number ?? '';
 
   return (
-    <div style={{ display:'flex',alignItems:'center',padding:'10px 14px',borderBottom:'1px solid var(--border-subtle)',background:isAlt?'rgba(255,255,255,0.015)':'transparent',gap:8,minHeight:40 }}>
-      <span style={{ fontFamily:'var(--font-mono)',fontWeight:700,fontSize:'var(--fs-sm)',color:'var(--text-primary)',width:26,textAlign:'center',flexShrink:0 }}>{number}</span>
-      <span style={{ flex:1,fontWeight:500,fontSize:'var(--fs-sm)',color:'var(--text-primary)' }}>{name}</span>
-      <div style={{ display:'flex',alignItems:'center',gap:5,flexShrink:0 }}>
-        {badges.filter(b=>b.type==='goal').map((b,i)=>(<span key={`g${i}`} style={{ display:'flex',alignItems:'center',gap:2 }}><GoalIcon size={13}/><span style={{ fontSize:'0.55rem',color:'var(--text-tertiary)',fontFamily:'var(--font-mono)' }}>{b.minute}'</span></span>))}
-        {badges.filter(b=>b.type==='own_goal').map((b,i)=>(<span key={`o${i}`} style={{ display:'flex',alignItems:'center',gap:2 }}><OwnGoalIcon size={13}/><span style={{ fontSize:'0.55rem',color:'var(--text-tertiary)',fontFamily:'var(--font-mono)' }}>{b.minute}'</span></span>))}
-        {badges.filter(b=>b.type==='assist').map((b,i)=>(<span key={`a${i}`} style={{ display:'flex',alignItems:'center',gap:2 }}><AssistIcon size={13}/><span style={{ fontSize:'0.55rem',color:'var(--text-tertiary)',fontFamily:'var(--font-mono)' }}>{b.minute}'</span></span>))}
-        {badges.filter(b=>b.type==='yellow').map((b,i)=>(<span key={`y${i}`} style={{ display:'flex',alignItems:'center',gap:2 }}><YellowCardIcon size={12}/><span style={{ fontSize:'0.55rem',color:'var(--text-tertiary)',fontFamily:'var(--font-mono)' }}>{b.minute}'</span></span>))}
-        {badges.filter(b=>b.type==='red'||b.type==='second_yellow').map((b,i)=>(<span key={`r${i}`} style={{ display:'flex',alignItems:'center',gap:2 }}>{b.type==='second_yellow'?<SecondYellowIcon size={12}/>:<RedCardIcon size={12}/>}<span style={{ fontSize:'0.55rem',color:'var(--text-tertiary)',fontFamily:'var(--font-mono)' }}>{b.minute}'</span></span>))}
+    <div style={{ display:'flex',alignItems:'center',padding:'10px 14px',borderBottom:'1px solid var(--border-subtle)',background:isAlt?'rgba(255,255,255,0.02)':'transparent',gap:10 }}>
+      <span style={{ fontFamily:'var(--font-mono)',fontWeight:800,fontSize:'var(--fs-sm)',minWidth:24,textAlign:'center',color:'var(--text-primary)' }}>{number}</span>
+      <span style={{ flex:1,fontWeight:600,fontSize:'var(--fs-sm)',color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{name}</span>
+      <div style={{ display:'flex',alignItems:'center',gap:6,flexShrink:0 }}>
+        {badges.map((b,i) => (<span key={i} style={{ display:'flex',alignItems:'center',gap:2 }}><SmallBadge type={b.type}/><span style={{ fontSize:'0.55rem',color:'var(--text-tertiary)',fontFamily:'var(--font-mono)' }}>{b.minute}'</span></span>))}
         {subbedOut && <span style={{ display:'flex',alignItems:'center',gap:2 }}><SubOutIcon size={10}/><span style={{ fontSize:'0.55rem',color:'var(--live)',fontFamily:'var(--font-mono)' }}>{subbedOut}'</span></span>}
         {subbedIn && <span style={{ display:'flex',alignItems:'center',gap:2 }}><SubInIcon size={10}/><span style={{ fontSize:'0.55rem',color:'var(--accent-primary)',fontFamily:'var(--font-mono)' }}>{subbedIn}'</span></span>}
       </div>

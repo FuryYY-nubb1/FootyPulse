@@ -22,11 +22,14 @@ export default function SearchResultsPage() {
       setLoading(true);
       try {
         const res = await searchApi.search(query);
+        const data = res?.data || res || {};
         setResults({
-          teams: res?.teams || res?.data?.teams || [],
-          players: res?.players || res?.data?.players || [],
-          articles: res?.articles || res?.data?.articles || [],
-          matches: res?.matches || res?.data?.matches || [],
+          teams: data.teams || [],
+          // FIX: API returns "players" AND "persons" — check both
+          players: data.players || data.persons || [],
+          articles: data.articles || [],
+          // FIX: API now returns matches
+          matches: data.matches || [],
         });
       } catch (err) { console.error(err); }
       finally { setLoading(false); }
@@ -34,7 +37,11 @@ export default function SearchResultsPage() {
     load();
   }, [query]);
 
-  const handleSearch = (q) => setSearchParams({ q });
+  const handleSearch = (q) => {
+    setActiveTab('all');
+    setSearchParams({ q });
+  };
+
   const total = results.teams.length + results.players.length + results.articles.length + results.matches.length;
   const tabs = [
     { key: 'all', label: 'All', count: total },
@@ -57,7 +64,7 @@ export default function SearchResultsPage() {
               <section style={{ marginBottom: 'var(--space-2xl)' }}>
                 <h3 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>Teams</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-md)' }}>
-                  {results.teams.map((t) => <TeamCard key={t.id} team={t} />)}
+                  {results.teams.map((t) => <TeamCard key={t.team_id || t.id} team={t} />)}
                 </div>
               </section>
             )}
@@ -65,7 +72,7 @@ export default function SearchResultsPage() {
               <section style={{ marginBottom: 'var(--space-2xl)' }}>
                 <h3 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>Players</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-md)' }}>
-                  {results.players.map((p) => <PlayerCard key={p.id} player={p} />)}
+                  {results.players.map((p) => <PlayerCard key={p.person_id || p.id} player={p} />)}
                 </div>
               </section>
             )}
@@ -73,7 +80,7 @@ export default function SearchResultsPage() {
               <section style={{ marginBottom: 'var(--space-2xl)' }}>
                 <h3 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>News</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 'var(--space-md)' }}>
-                  {results.articles.map((a) => <ArticleCard key={a.id} article={a} />)}
+                  {results.articles.map((a) => <ArticleCard key={a.article_id || a.id} article={a} />)}
                 </div>
               </section>
             )}
@@ -81,7 +88,7 @@ export default function SearchResultsPage() {
               <section style={{ marginBottom: 'var(--space-2xl)' }}>
                 <h3 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>Matches</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 'var(--space-md)' }}>
-                  {results.matches.map((m) => <MatchCard key={m.id} match={m} />)}
+                  {results.matches.map((m) => <MatchCard key={m.match_id || m.id} match={m} />)}
                 </div>
               </section>
             )}
