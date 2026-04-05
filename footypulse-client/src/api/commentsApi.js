@@ -1,10 +1,3 @@
-// ============================================
-// src/api/commentsApi.js
-// ============================================
-// FIXED: create() now posts to /comments (the actual route)
-//        with article_id, user_id, user_name, content in the body.
-//        getByArticle uses /comments/article/:articleId (the actual route).
-// ============================================
 
 import api from './axiosConfig';
 

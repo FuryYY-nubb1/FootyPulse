@@ -1,8 +1,3 @@
-// ============================================
-// src/api/authApi.js
-// ============================================
-// UPDATED: Added getMe() for token verification on every page load.
-// ============================================
 
 import api from './axiosConfig';
 
