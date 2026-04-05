@@ -1,9 +1,3 @@
-// ============================================
-// src/routes/pollsRoutes.js
-// ============================================
-// UPDATED: POST /:id/votes now requires `auth` middleware
-//          so only authenticated users can vote.
-// ============================================
 
 const router = require('express').Router();
 const controller = require('../controllers/pollsController');

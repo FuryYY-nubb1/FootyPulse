@@ -1,14 +1,6 @@
-// ============================================
-// src/models/standingModel.js
-// ============================================
-// UPDATED: All DML operations (create, update, delete, createBulk)
-//          use explicit transaction control (BEGIN/COMMIT/ROLLBACK).
-// ============================================
-
 const db = require('../config/db');
 
 const StandingModel = {
-  // ── READ operations (no transaction needed) ──
 
   async getBySeason(seasonId, groupName = null) {
     let query = `
@@ -45,12 +37,6 @@ const StandingModel = {
     return result.rows[0];
   },
 
-  // ── DML operations with explicit transaction control ──
-
-  /**
-   * Create a standing with explicit transaction control.
-   * BEGIN → INSERT standing → COMMIT / ROLLBACK
-   */
   async create(fields) {
     const client = await db.getClient();
     try {
@@ -75,10 +61,6 @@ const StandingModel = {
     }
   },
 
-  /**
-   * Update a standing with explicit transaction control.
-   * BEGIN → UPDATE standing → COMMIT / ROLLBACK
-   */
   async update(id, fields) {
     const client = await db.getClient();
     try {
@@ -108,10 +90,6 @@ const StandingModel = {
     }
   },
 
-  /**
-   * Delete a standing with explicit transaction control.
-   * BEGIN → DELETE standing → COMMIT / ROLLBACK
-   */
   async delete(id) {
     const client = await db.getClient();
     try {
@@ -132,11 +110,6 @@ const StandingModel = {
     }
   },
 
-  /**
-   * Bulk create standings with explicit transaction control.
-   * BEGIN → INSERT multiple standings → COMMIT / ROLLBACK
-   * If any insert fails, the entire batch is rolled back.
-   */
   async createBulk(seasonId, teamIds, groupName) {
     const client = await db.getClient();
     try {

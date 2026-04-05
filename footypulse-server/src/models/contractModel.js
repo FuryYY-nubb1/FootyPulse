@@ -1,10 +1,3 @@
-// ============================================
-// src/models/contractModel.js
-// ============================================
-// UPDATED: All DML operations use explicit transaction control.
-//   Added getExpiring() → complex query for expiring contracts.
-//   Trigger trg_validate_contract handles overlap validation in PostgreSQL.
-// ============================================
 
 const db = require('../config/db');
 
@@ -100,10 +93,10 @@ const ContractModel = {
   async getExpiring(months = 6, limit = 50) {
     const result = await db.query(
       `SELECT c.contract_id, c.contract_type, c.start_date, c.end_date, c.jersey_number,
-              p.person_id, p.display_name, p.photo_url, p.primary_position, p.market_value,
-              t.team_id, t.name AS team_name, t.short_name AS team_short, t.logo_url AS team_logo,
-              co.name AS nationality,
-              EXTRACT(DAY FROM c.end_date - CURRENT_DATE) AS days_remaining
+      p.person_id, p.display_name, p.photo_url, p.primary_position, p.market_value,
+      t.team_id, t.name AS team_name, t.short_name AS team_short, t.logo_url AS team_logo,
+      co.name AS nationality,
+      EXTRACT(DAY FROM c.end_date - CURRENT_DATE) AS days_remaining
        FROM contracts c
        JOIN persons p ON c.person_id = p.person_id
        JOIN teams t ON c.team_id = t.team_id

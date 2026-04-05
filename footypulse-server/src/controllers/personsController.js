@@ -1,11 +1,3 @@
-// ============================================
-// src/controllers/personsController.js
-// ============================================
-// UPDATED: Added endpoints for:
-//   - GET /:id/career-stats   → fn_get_player_career_stats function
-//   - GET /top-valued         → complex query (top valued by position)
-// ============================================
-
 const PersonModel = require('../models/personModel');
 const db = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
@@ -87,7 +79,6 @@ exports.getStats = asyncHandler(async (req, res) => {
   if (seasonId) { cardsQuery += ` AND m.season_id = $2`; cardsValues.push(seasonId); }
   const cardsResult = await db.query(cardsQuery, cardsValues);
 
-  // Advanced stats from JSONB
   let advancedQuery = `SELECT
     COALESCE(SUM((mp.stats->>'shots')::int), 0) AS shots,
     COALESCE(SUM((mp.stats->>'shots_on_target')::int), 0) AS shots_on_target,
@@ -149,7 +140,7 @@ exports.getTransfers = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const result = await db.query(
     `SELECT tr.*, ft.name AS from_team_name, ft.logo_url AS from_team_logo,
-            tt.name AS to_team_name, tt.logo_url AS to_team_logo
+    tt.name AS to_team_name, tt.logo_url AS to_team_logo
      FROM transfers tr
      LEFT JOIN teams ft ON tr.from_team_id = ft.team_id
      JOIN teams tt ON tr.to_team_id = tt.team_id
@@ -176,24 +167,12 @@ exports.remove = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Person deleted' });
 });
 
-// ════════════════════════════════════════════════════════════════
-// NEW: Database Function — Career stats
-// GET /persons/:id/career-stats
-// Uses fn_get_player_career_stats for computed lifetime stats
-// ════════════════════════════════════════════════════════════════
-
 exports.getCareerStats = asyncHandler(async (req, res) => {
   const personId = parseInt(req.params.id);
   const stats = await PersonModel.getCareerStats(personId);
   if (!stats) throw ApiError.notFound('Person not found or no stats available');
   res.json({ success: true, data: stats });
 });
-
-// ════════════════════════════════════════════════════════════════
-// NEW: Complex Query — Top valued players
-// GET /persons/top-valued?limit=20
-// Multi-table join + ordering by market value
-// ════════════════════════════════════════════════════════════════
 
 exports.getTopValued = asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit) || 20;

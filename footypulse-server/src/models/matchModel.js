@@ -1,13 +1,3 @@
-// ============================================
-// src/models/matchModel.js
-// ============================================
-// UPDATED: All DML operations (create, update, delete) use
-//          explicit transaction control (BEGIN/COMMIT/ROLLBACK).
-//          Added recordResult() that calls sp_record_match_result procedure.
-//          Added getLeagueStats() that calls fn_get_league_stats function.
-//          Added getTeamForm() that calls fn_get_team_form function.
-//          Added complex queries for analytics endpoints.
-// ============================================
 
 const db = require('../config/db');
 
@@ -17,12 +7,12 @@ const MatchModel = {
   async getAll(limit = 20, offset = 0, filters = {}) {
     let query = `
       SELECT m.*,
-             ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
-             at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
-             s.name AS season_name, comp.name AS competition_name, comp.competition_id,
-             comp.logo_url AS competition_logo,
-             st.name AS stadium_name,
-             ref.display_name AS referee_name
+    ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
+    at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
+    s.name AS season_name, comp.name AS competition_name, comp.competition_id,
+    comp.logo_url AS competition_logo,
+    st.name AS stadium_name,
+    ref.display_name AS referee_name
       FROM matches m
       JOIN teams ht ON m.home_team_id = ht.team_id
       JOIN teams at ON m.away_team_id = at.team_id
@@ -57,13 +47,13 @@ const MatchModel = {
   async getById(id) {
     const result = await db.query(
       `SELECT m.*,
-              ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
-              at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
-              s.name AS season_name,
-              comp.name AS competition_name, comp.competition_id,
-              comp.logo_url AS competition_logo, comp.short_name AS competition_short,
-              st.name AS stadium_name, st.city AS stadium_city,
-              ref.display_name AS referee_name
+      ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
+      at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
+      s.name AS season_name,
+      comp.name AS competition_name, comp.competition_id,
+      comp.logo_url AS competition_logo, comp.short_name AS competition_short,
+      st.name AS stadium_name, st.city AS stadium_city,
+      ref.display_name AS referee_name
        FROM matches m
        JOIN teams ht ON m.home_team_id = ht.team_id
        JOIN teams at ON m.away_team_id = at.team_id
@@ -80,10 +70,10 @@ const MatchModel = {
   async getLive() {
     const result = await db.query(
       `SELECT m.*,
-              ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
-              at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
-              s.name AS season_name, comp.name AS competition_name, comp.competition_id,
-              comp.logo_url AS competition_logo
+      ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
+      at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
+      s.name AS season_name, comp.name AS competition_name, comp.competition_id,
+      comp.logo_url AS competition_logo
        FROM matches m
        JOIN teams ht ON m.home_team_id = ht.team_id
        JOIN teams at ON m.away_team_id = at.team_id
@@ -98,9 +88,9 @@ const MatchModel = {
   async getByDate(date) {
     const result = await db.query(
       `SELECT m.*,
-              ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
-              at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
-              comp.name AS competition_name, comp.competition_id, comp.logo_url AS competition_logo
+      ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
+      at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
+      comp.name AS competition_name, comp.competition_id, comp.logo_url AS competition_logo
        FROM matches m
        JOIN teams ht ON m.home_team_id = ht.team_id
        JOIN teams at ON m.away_team_id = at.team_id
@@ -116,9 +106,9 @@ const MatchModel = {
   async getHeadToHead(team1Id, team2Id, limit = 10) {
     const result = await db.query(
       `SELECT m.*,
-              ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
-              at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
-              comp.name AS competition_name
+      ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
+      at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
+      comp.name AS competition_name
        FROM matches m
        JOIN teams ht ON m.home_team_id = ht.team_id
        JOIN teams at ON m.away_team_id = at.team_id
@@ -154,14 +144,6 @@ const MatchModel = {
     return parseInt(result.rows[0].count);
   },
 
-  // ════════════════════════════════════════════════════════════════
-  // DML OPERATIONS — All use explicit transaction control
-  // ════════════════════════════════════════════════════════════════
-
-  /**
-   * Create a match with explicit transaction control.
-   * BEGIN → INSERT match → COMMIT / ROLLBACK
-   */
   async create(fields) {
     const client = await db.getClient();
     try {
@@ -169,9 +151,9 @@ const MatchModel = {
 
       const result = await client.query(
         `INSERT INTO matches (season_id, stage_name, group_name, matchday, home_team_id,
-                              away_team_id, home_score, away_score, home_penalties, away_penalties,
-                              match_date, kick_off_time, stadium_id, referee_id, status,
-                              attendance, home_formation, away_formation, home_stats, away_stats)
+        away_team_id, home_score, away_score, home_penalties, away_penalties,
+        match_date, kick_off_time, stadium_id, referee_id, status,
+        attendance, home_formation, away_formation, home_stats, away_stats)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *`,
         [fields.season_id, fields.stage_name, fields.group_name, fields.matchday,
          fields.home_team_id, fields.away_team_id, fields.home_score, fields.away_score,
@@ -191,11 +173,6 @@ const MatchModel = {
       client.release();
     }
   },
-
-  /**
-   * Update a match with explicit transaction control.
-   * BEGIN → UPDATE match → COMMIT / ROLLBACK
-   */
   async update(id, fields) {
     const client = await db.getClient();
     try {
@@ -204,15 +181,15 @@ const MatchModel = {
       const result = await client.query(
         `UPDATE matches
          SET season_id = COALESCE($1, season_id), stage_name = COALESCE($2, stage_name),
-             group_name = COALESCE($3, group_name), matchday = COALESCE($4, matchday),
-             home_team_id = COALESCE($5, home_team_id), away_team_id = COALESCE($6, away_team_id),
-             home_score = COALESCE($7, home_score), away_score = COALESCE($8, away_score),
-             home_penalties = COALESCE($9, home_penalties), away_penalties = COALESCE($10, away_penalties),
-             match_date = COALESCE($11, match_date), kick_off_time = COALESCE($12, kick_off_time),
-             stadium_id = COALESCE($13, stadium_id), referee_id = COALESCE($14, referee_id),
-             status = COALESCE($15, status), attendance = COALESCE($16, attendance),
-             home_formation = COALESCE($17, home_formation), away_formation = COALESCE($18, away_formation),
-             home_stats = COALESCE($19, home_stats), away_stats = COALESCE($20, away_stats)
+        group_name = COALESCE($3, group_name), matchday = COALESCE($4, matchday),
+        home_team_id = COALESCE($5, home_team_id), away_team_id = COALESCE($6, away_team_id),
+        home_score = COALESCE($7, home_score), away_score = COALESCE($8, away_score),
+        home_penalties = COALESCE($9, home_penalties), away_penalties = COALESCE($10, away_penalties),
+        match_date = COALESCE($11, match_date), kick_off_time = COALESCE($12, kick_off_time),
+        stadium_id = COALESCE($13, stadium_id), referee_id = COALESCE($14, referee_id),
+        status = COALESCE($15, status), attendance = COALESCE($16, attendance),
+        home_formation = COALESCE($17, home_formation), away_formation = COALESCE($18, away_formation),
+        home_stats = COALESCE($19, home_stats), away_stats = COALESCE($20, away_stats)
          WHERE match_id = $21 RETURNING *`,
         [fields.season_id, fields.stage_name, fields.group_name, fields.matchday,
          fields.home_team_id, fields.away_team_id, fields.home_score, fields.away_score,
@@ -233,10 +210,6 @@ const MatchModel = {
     }
   },
 
-  /**
-   * Delete a match with explicit transaction control.
-   * BEGIN → DELETE match → COMMIT / ROLLBACK
-   */
   async delete(id) {
     const client = await db.getClient();
     try {
@@ -257,19 +230,6 @@ const MatchModel = {
     }
   },
 
-  // ════════════════════════════════════════════════════════════════
-  // PROCEDURE CALL — sp_record_match_result
-  // Multi-step: update match score + standings + manager records
-  // ════════════════════════════════════════════════════════════════
-
-  /**
-   * Record a match result using the stored procedure sp_record_match_result.
-   * Uses explicit transaction control: BEGIN → CALL procedure → COMMIT / ROLLBACK.
-   * The procedure handles:
-   *   1. Update match score & status → 'finished'
-   *   2. Update standings for both teams (W/D/L, GF, GA, points)
-   *   3. Update manager contract records (matches_managed, wins, draws, losses)
-   */
   async recordResult(matchId, homeScore, awayScore, attendance = null, homeFormation = null, awayFormation = null) {
     const client = await db.getClient();
     try {
@@ -293,15 +253,6 @@ const MatchModel = {
     }
   },
 
-  // ════════════════════════════════════════════════════════════════
-  // FUNCTION CALLS — fn_get_league_stats, fn_get_team_form
-  // ════════════════════════════════════════════════════════════════
-
-  /**
-   * Get league statistics using the database function fn_get_league_stats.
-   * Returns computed stats: total matches, goals, avg goals/match,
-   * home/away win percentages, biggest wins, top teams, etc.
-   */
   async getLeagueStats(seasonId) {
     const result = await db.query(
       'SELECT * FROM fn_get_league_stats($1)',
@@ -310,10 +261,6 @@ const MatchModel = {
     return result.rows[0] || null;
   },
 
-  /**
-   * Get team's recent form using the database function fn_get_team_form.
-   * Returns last N matches with result (W/D/L).
-   */
   async getTeamForm(teamId, limit = 5) {
     const result = await db.query(
       'SELECT * FROM fn_get_team_form($1, $2)',
@@ -322,29 +269,20 @@ const MatchModel = {
     return result.rows;
   },
 
-  // ════════════════════════════════════════════════════════════════
-  // COMPLEX QUERIES — Multi-table joins + aggregations
-  // ════════════════════════════════════════════════════════════════
-
-  /**
-   * COMPLEX QUERY 1: Top scorers in a league/season
-   * Joins: match_events → persons → teams → matches → seasons → competitions
-   * Aggregation: COUNT goals grouped by player
-   */
   async getTopScorers(seasonId, limit = 20) {
     const result = await db.query(
       `SELECT
-          p.person_id,
-          p.display_name,
-          p.photo_url,
-          p.primary_position,
-          t.name AS team_name,
-          t.short_name AS team_short,
-          t.logo_url AS team_logo,
-          COUNT(*) FILTER (WHERE me.event_type = 'goal') AS goals,
-          COUNT(*) FILTER (WHERE me.event_type = 'penalty') AS penalties,
-          COUNT(*) FILTER (WHERE me.event_type IN ('goal', 'penalty')) AS total_goals,
-          COUNT(DISTINCT me.match_id) AS matches_scored_in
+      p.person_id,
+      p.display_name,
+      p.photo_url,
+      p.primary_position,
+      t.name AS team_name,
+      t.short_name AS team_short,
+      t.logo_url AS team_logo,
+      COUNT(*) FILTER (WHERE me.event_type = 'goal') AS goals,
+      COUNT(*) FILTER (WHERE me.event_type = 'penalty') AS penalties,
+      COUNT(*) FILTER (WHERE me.event_type IN ('goal', 'penalty')) AS total_goals,
+      COUNT(DISTINCT me.match_id) AS matches_scored_in
        FROM match_events me
        JOIN matches m ON me.match_id = m.match_id
        JOIN persons p ON me.person_id = p.person_id
@@ -361,11 +299,6 @@ const MatchModel = {
     return result.rows;
   },
 
-  /**
-   * COMPLEX QUERY 2: Top assisters in a league/season
-   * Joins: match_events → persons (related_person) → teams → matches → seasons
-   * Aggregation: COUNT assists grouped by player
-   */
   async getTopAssisters(seasonId, limit = 20) {
     const result = await db.query(
       `SELECT
@@ -394,22 +327,17 @@ const MatchModel = {
     return result.rows;
   },
 
-  /**
-   * COMPLEX QUERY 3: Most disciplined/undisciplined teams
-   * Joins: match_events → teams → matches → seasons → competitions
-   * Aggregation: COUNT cards grouped by team, with yellow/red breakdown
-   */
   async getTeamCards(seasonId, limit = 20) {
     const result = await db.query(
       `SELECT
-          t.team_id,
-          t.name AS team_name,
-          t.short_name,
-          t.logo_url AS team_logo,
-          COUNT(*) FILTER (WHERE me.event_type = 'yellow') AS yellow_cards,
-          COUNT(*) FILTER (WHERE me.event_type = 'red') AS red_cards,
-          COUNT(*) FILTER (WHERE me.event_type = 'second_yellow') AS second_yellows,
-          COUNT(*) AS total_cards
+        t.team_id,
+        t.name AS team_name,
+        t.short_name,
+        t.logo_url AS team_logo,
+        COUNT(*) FILTER (WHERE me.event_type = 'yellow') AS yellow_cards,
+        COUNT(*) FILTER (WHERE me.event_type = 'red') AS red_cards,
+        COUNT(*) FILTER (WHERE me.event_type = 'second_yellow') AS second_yellows,
+        COUNT(*) AS total_cards
        FROM match_events me
        JOIN matches m ON me.match_id = m.match_id
        JOIN teams t ON me.team_id = t.team_id
@@ -423,9 +351,6 @@ const MatchModel = {
     return result.rows;
   },
 
-  /**
-   * Get match audit log (from shadow table populated by trigger)
-   */
   async getAuditLog(matchId = null, limit = 50) {
     let query = 'SELECT * FROM match_audit';
     const values = [];

@@ -1,28 +1,9 @@
--- ============================================================================
--- FOOTYPULSE — Article & Competition Migration
--- ============================================================================
--- Adds: shadow tables, triggers, functions, procedures for articles & competitions
--- Run this AFTER schema.sql and match_leagues.sql
---
--- COVERS:
---   3. Explicit Transaction Control  → used in articleModel.js, competitionModel.js
---   4. Trigger                       → trg_audit_article (logs article DML to shadow table)
---                                    → trg_validate_competition (validates competition DML)
---   5. Function                      → fn_get_article_stats (article analytics per competition/team)
---                                    → fn_get_competition_overview (full competition summary)
---   6. Procedure                     → sp_publish_article (multi-step article publish workflow)
---                                    → sp_setup_competition_season (create season + standings)
---   7. Complex Queries               → demonstrated in controller endpoints
--- ============================================================================
 
-
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  1. SHADOW TABLE — Audit log for article changes                       ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+--  Shadow TableE — Audit log for article changes ......                     
 
 CREATE TABLE IF NOT EXISTS article_audit (
     audit_id     SERIAL PRIMARY KEY,
-    action       VARCHAR(10) NOT NULL,              -- 'INSERT', 'UPDATE', 'DELETE'
+    action       VARCHAR(10) NOT NULL,              
     article_id   INT,
     slug         VARCHAR(300),
     title        VARCHAR(250),
@@ -30,44 +11,32 @@ CREATE TABLE IF NOT EXISTS article_audit (
     author_name  VARCHAR(100),
     author_id    VARCHAR(50),
     performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    old_values   JSONB,                             -- previous row data (UPDATE/DELETE)
-    new_values   JSONB                              -- new row data (INSERT/UPDATE)
+    old_values   JSONB,                          
+    new_values   JSONB                              
 );
 
-
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  2. TRIGGER — trg_audit_article                                        ║
--- ║     Validates articles before INSERT/UPDATE and logs all changes        ║
--- ║     to the article_audit shadow table.                                 ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- for validating article data....
 
 CREATE OR REPLACE FUNCTION fn_audit_article()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- ── Data validation BEFORE insert/update ──
     IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
-        -- Validate: title cannot be empty
         IF NEW.title IS NULL OR TRIM(NEW.title) = '' THEN
             RAISE EXCEPTION 'Article title cannot be empty' USING ERRCODE = 'P0030';
         END IF;
 
-        -- Validate: content cannot be empty
         IF NEW.content IS NULL OR TRIM(NEW.content) = '' THEN
             RAISE EXCEPTION 'Article content cannot be empty' USING ERRCODE = 'P0031';
         END IF;
-
-        -- Validate: published articles must have a published_at timestamp
         IF NEW.status = 'published' AND NEW.published_at IS NULL THEN
             NEW.published_at := CURRENT_TIMESTAMP;
         END IF;
 
-        -- Validate: view_count cannot be negative
         IF NEW.view_count < 0 THEN
             RAISE EXCEPTION 'Article view_count cannot be negative' USING ERRCODE = 'P0032';
         END IF;
     END IF;
 
-    -- ── Logging to shadow table ──
     IF TG_OP = 'INSERT' THEN
         INSERT INTO article_audit (action, article_id, slug, title, status, author_name, author_id, new_values)
         VALUES ('INSERT', NEW.article_id, NEW.slug, NEW.title, NEW.status, NEW.author_name, NEW.author_id,
@@ -114,10 +83,7 @@ FOR EACH ROW
 EXECUTE FUNCTION fn_audit_article();
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  3. TRIGGER — trg_validate_competition                                 ║
--- ║     Validates competition data before INSERT/UPDATE and logs changes    ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- // triggger fior competitions
 
 CREATE TABLE IF NOT EXISTS competition_audit (
     audit_id       SERIAL PRIMARY KEY,
@@ -133,21 +99,16 @@ CREATE TABLE IF NOT EXISTS competition_audit (
 CREATE OR REPLACE FUNCTION fn_audit_competition()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- ── Data validation ──
     IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
-        -- Validate: name cannot be empty
         IF NEW.name IS NULL OR TRIM(NEW.name) = '' THEN
             RAISE EXCEPTION 'Competition name cannot be empty' USING ERRCODE = 'P0040';
         END IF;
-
-        -- Validate: international competitions should not have a country
         IF NEW.competition_type = 'international' AND NEW.country_id IS NOT NULL THEN
             -- Auto-fix: set country_id to NULL for international competitions
             NEW.country_id := NULL;
         END IF;
     END IF;
 
-    -- ── Logging to shadow table ──
     IF TG_OP = 'INSERT' THEN
         INSERT INTO competition_audit (action, competition_id, name, competition_type, new_values)
         VALUES ('INSERT', NEW.competition_id, NEW.name, NEW.competition_type,
@@ -179,12 +140,7 @@ FOR EACH ROW
 EXECUTE FUNCTION fn_audit_competition();
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  4. FUNCTION — fn_get_article_stats                                    ║
--- ║     Returns computed article statistics:                               ║
--- ║     total articles, total views, avg views, by type breakdown,         ║
--- ║     most viewed article, top author, articles per competition          ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- / function for getting article stats for a competition or team... bruhh.
 
 CREATE OR REPLACE FUNCTION fn_get_article_stats(
     p_competition_id INT DEFAULT NULL,
@@ -274,12 +230,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  5. FUNCTION — fn_get_competition_overview                             ║
--- ║     Returns a comprehensive overview of a competition:                 ║
--- ║     total seasons, total teams, total matches, current season info,    ║
--- ║     article count, top scoring team                                    ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+---- fuction for gettin comepetition overview stats
 
 CREATE OR REPLACE FUNCTION fn_get_competition_overview(p_competition_id INT)
 RETURNS TABLE (
@@ -362,15 +313,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  6. PROCEDURE — sp_publish_article                                     ║
--- ║     Multi-step workflow that:                                          ║
--- ║       Step 1: Validates the article exists and is in draft status      ║
--- ║       Step 2: Updates article status to 'published', sets timestamp    ║
--- ║       Step 3: If is_breaking, un-break all other breaking articles     ║
--- ║       Step 4: If is_featured, limit featured articles to max 5         ║
--- ║     All within one transaction — committed by the caller.              ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- for article publishment....
 
 CREATE OR REPLACE PROCEDURE sp_publish_article(
     p_article_id  INT,
@@ -399,24 +342,19 @@ BEGIN
         RAISE EXCEPTION 'Cannot publish an archived article. Unarchive it first.' USING ERRCODE = 'P0052';
     END IF;
 
-    -- Step 2: Update article to published
     UPDATE articles
     SET status = 'published',
         published_at = CURRENT_TIMESTAMP,
         is_featured = p_is_featured,
         is_breaking = p_is_breaking
     WHERE article_id = p_article_id;
-
-    -- Step 3: If this is a breaking article, un-break all other breaking articles
-    -- (only one article should be "breaking" at a time)
+    -- if this is breaking ,,tahole bakigula ar breaking nai
     IF p_is_breaking THEN
         UPDATE articles
         SET is_breaking = FALSE
         WHERE article_id != p_article_id AND is_breaking = TRUE;
     END IF;
-
-    -- Step 4: If featured, ensure max 5 featured articles
-    -- Un-feature the oldest featured article if limit exceeded
+-- highest 5 ta article featured hote parbe, jodi featured hoy tahole oldest featured article ta ar featured thakbe na
     IF p_is_featured THEN
         SELECT COUNT(*) INTO v_featured_count
         FROM articles WHERE is_featured = TRUE AND status = 'published';
@@ -434,19 +372,11 @@ BEGIN
         END IF;
     END IF;
 
-    -- Transaction is committed by the caller (explicit COMMIT in application code)
 END;
 $$;
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  7. PROCEDURE — sp_setup_competition_season                            ║
--- ║     Multi-step workflow that:                                          ║
--- ║       Step 1: Creates a new season for the competition                 ║
--- ║       Step 2: Sets all other seasons for this competition to non-current║
--- ║       Step 3: Creates initial standings rows for all provided teams    ║
--- ║     All within one transaction — committed by the caller.              ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+ -- procdure for setting up a new season for competition, and also ager season k previous hishebe mark kora
 
 CREATE OR REPLACE PROCEDURE sp_setup_competition_season(
     p_competition_id INT,
@@ -472,17 +402,17 @@ BEGIN
             USING ERRCODE = 'P0060';
     END IF;
 
-    -- Step 2: Mark all existing seasons for this competition as non-current
+    --  Mark all existing seasons for this competition as non-current
     UPDATE seasons
     SET is_current = FALSE
     WHERE competition_id = p_competition_id AND is_current = TRUE;
 
-    -- Step 3: Create the new season
+    -- new season create kora
     INSERT INTO seasons (competition_id, name, start_date, end_date, is_current)
     VALUES (p_competition_id, p_season_name, p_start_date, p_end_date, TRUE)
     RETURNING season_id INTO v_new_season_id;
 
-    -- Step 4: Create initial standings for each team
+    -- initial standings for each team for notun season
     IF p_team_ids IS NOT NULL AND array_length(p_team_ids, 1) > 0 THEN
         FOR v_i IN 1 .. array_length(p_team_ids, 1)
         LOOP
@@ -494,6 +424,5 @@ BEGIN
         END LOOP;
     END IF;
 
-    -- Transaction is committed by the caller (explicit COMMIT in application code)
 END;
 $$;

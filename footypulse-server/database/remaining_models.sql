@@ -1,18 +1,3 @@
--- ============================================================================
--- FOOTYPULSE — Remaining Models Migration
--- ============================================================================
--- Run AFTER schema.sql, match_leagues.sql, article_competition.sql
---
--- COVERS:
---   Transfer: trigger (audit), procedure (sp_execute_transfer), function (fn_get_transfer_stats)
---   Contract: trigger (validate overlaps)
---   Person:   function (fn_get_player_career_stats)
--- ============================================================================
-
-
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  1. TRANSFER — Shadow table + Trigger                                  ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
 
 CREATE TABLE IF NOT EXISTS transfer_audit (
     audit_id      SERIAL PRIMARY KEY,
@@ -65,10 +50,7 @@ AFTER INSERT OR UPDATE OR DELETE ON transfers
 FOR EACH ROW EXECUTE FUNCTION fn_audit_transfer();
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  2. TRANSFER — Procedure sp_execute_transfer                           ║
--- ║     Multi-step: insert transfer → end old contract → create new one    ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- to execute a transder......
 
 CREATE OR REPLACE PROCEDURE sp_execute_transfer(
     p_person_id      INT,
@@ -87,25 +69,23 @@ DECLARE
     v_person_exists BOOLEAN;
     v_new_transfer_id INT;
 BEGIN
-    -- Step 1: Validate person exists
+    --person exists
     SELECT EXISTS(SELECT 1 FROM persons WHERE person_id = p_person_id) INTO v_person_exists;
     IF NOT v_person_exists THEN
         RAISE EXCEPTION 'Person not found (person_id: %)', p_person_id USING ERRCODE = 'P0072';
     END IF;
 
-    -- Step 2: Insert transfer record
+    -- thenn transfer record
     INSERT INTO transfers (person_id, from_team_id, to_team_id, transfer_type, status, fee, fee_currency, transfer_date, window_year, window_type)
     VALUES (p_person_id, p_from_team_id, p_to_team_id, p_transfer_type, 'official', p_fee, 'EUR', p_transfer_date, p_window_year, p_window_type)
     RETURNING transfer_id INTO v_new_transfer_id;
-
-    -- Step 3: End current contract at the old club
+    --ending current contract at the old club
     IF p_from_team_id IS NOT NULL THEN
         UPDATE contracts
         SET is_current = FALSE, end_date = p_transfer_date
         WHERE person_id = p_person_id AND team_id = p_from_team_id AND is_current = TRUE;
     END IF;
-
-    -- Step 4: Create new contract at the destination club
+    -- new contract at the destination club
     IF p_transfer_type = 'loan' THEN
         INSERT INTO contracts (person_id, team_id, contract_type, start_date, is_current, parent_club_id, jersey_number)
         VALUES (p_person_id, p_to_team_id, 'loan', p_transfer_date, TRUE, p_from_team_id, p_jersey_number);
@@ -113,17 +93,10 @@ BEGIN
         INSERT INTO contracts (person_id, team_id, contract_type, start_date, is_current, jersey_number)
         VALUES (p_person_id, p_to_team_id, 'player', p_transfer_date, TRUE, p_jersey_number);
     END IF;
-
-    -- Transaction committed by the caller
 END;
 $$;
 
-
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  3. TRANSFER — Function fn_get_transfer_stats                          ║
--- ║     Returns net spend, arrivals, departures per team for a window      ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
-
+-- to get the transfer stats...total arrivals, departures, net spend per team......
 CREATE OR REPLACE FUNCTION fn_get_transfer_stats(
     p_window_year SMALLINT DEFAULT NULL,
     p_window_type VARCHAR(6) DEFAULT NULL
@@ -170,10 +143,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  4. CONTRACT — Trigger to validate no overlapping active contracts     ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- jdi multiple overlapping contract thake..then validate
 
 CREATE OR REPLACE FUNCTION fn_validate_contract()
 RETURNS TRIGGER AS $$
@@ -191,7 +161,6 @@ BEGIN
               AND contract_type = NEW.contract_type
               AND is_current = TRUE
               AND contract_id != COALESCE(NEW.contract_id, 0);
-
             IF v_existing > 0 THEN
                 RAISE EXCEPTION 'Person already has an active % contract at this team (person_id: %, team_id: %)',
                     NEW.contract_type, NEW.person_id, NEW.team_id
@@ -199,7 +168,6 @@ BEGIN
             END IF;
         END IF;
 
-        -- Validate: start_date required
         IF NEW.start_date IS NULL THEN
             RAISE EXCEPTION 'Contract start_date is required' USING ERRCODE = 'P0081';
         END IF;
@@ -220,10 +188,7 @@ BEFORE INSERT OR UPDATE ON contracts
 FOR EACH ROW EXECUTE FUNCTION fn_validate_contract();
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  5. PERSON — Function fn_get_player_career_stats                       ║
--- ║     Computes career stats from match_events and match_players           ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- for getting the career of a player...
 
 CREATE OR REPLACE FUNCTION fn_get_player_career_stats(p_person_id INT)
 RETURNS TABLE (

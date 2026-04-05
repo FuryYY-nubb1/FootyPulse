@@ -1,19 +1,9 @@
-// ============================================
-// src/controllers/transfersController.js
-// ============================================
-// UPDATED: Added endpoints for:
-//   - POST /execute       → sp_execute_transfer procedure
-//   - GET /stats          → fn_get_transfer_stats function
-//   - GET /spending       → complex query (spending by league)
-//   - GET /audit          → audit log from shadow table
-// ============================================
 
 const TransferModel = require('../models/transferModel');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { getPagination, paginate } = require('../utils/pagination');
 
-// ── Standard CRUD ──
 
 exports.getAll = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPagination(req.query);
@@ -55,12 +45,6 @@ exports.remove = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Transfer deleted' });
 });
 
-// ════════════════════════════════════════════════════════════════
-// NEW: Stored Procedure — Execute transfer
-// POST /transfers/execute
-// Uses sp_execute_transfer: insert transfer → end old contract → create new contract
-// ════════════════════════════════════════════════════════════════
-
 exports.executeTransfer = asyncHandler(async (req, res) => {
   const { person_id, from_team_id, to_team_id, transfer_type, fee,
           transfer_date, window_year, window_type, jersey_number } = req.body;
@@ -82,10 +66,6 @@ exports.executeTransfer = asyncHandler(async (req, res) => {
   });
 });
 
-// ════════════════════════════════════════════════════════════════
-// NEW: Database Function — Transfer statistics
-// GET /transfers/stats?window_year=2025&window_type=summer
-// ════════════════════════════════════════════════════════════════
 
 exports.getStats = asyncHandler(async (req, res) => {
   const windowYear = req.query.window_year ? parseInt(req.query.window_year) : null;
@@ -94,22 +74,12 @@ exports.getStats = asyncHandler(async (req, res) => {
   res.json({ success: true, data: stats });
 });
 
-// ════════════════════════════════════════════════════════════════
-// NEW: Complex Query — Spending by league
-// GET /transfers/spending?window_year=2025
-// ════════════════════════════════════════════════════════════════
 
 exports.getSpending = asyncHandler(async (req, res) => {
   const windowYear = req.query.window_year ? parseInt(req.query.window_year) : null;
   const spending = await TransferModel.getSpendingByLeague(windowYear);
   res.json({ success: true, data: spending });
 });
-
-// ════════════════════════════════════════════════════════════════
-// NEW: Audit log from shadow table
-// GET /transfers/audit
-// GET /transfers/audit/:transferId
-// ════════════════════════════════════════════════════════════════
 
 exports.getAuditLog = asyncHandler(async (req, res) => {
   const transferId = req.params.transferId ? parseInt(req.params.transferId) : null;

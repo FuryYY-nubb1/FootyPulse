@@ -1,6 +1,4 @@
 
--- Run after schema.sql: npm run db:indexes
-
 CREATE INDEX IF NOT EXISTS idx_matches_season ON matches(season_id);
 CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(match_date);
 CREATE INDEX IF NOT EXISTS idx_matches_home_team ON matches(home_team_id);

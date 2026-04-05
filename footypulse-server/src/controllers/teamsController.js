@@ -1,8 +1,3 @@
-// ============================================
-// src/controllers/teamsController.js
-// ============================================
-// UPDATED: Added getSquadValueRanking() → complex query
-// ============================================
 
 const TeamModel = require('../models/teamModel');
 const asyncHandler = require('../utils/asyncHandler');
@@ -70,8 +65,8 @@ exports.getTransfers = asyncHandler(async (req, res) => {
 
   const result = await db.query(
     `SELECT tr.*, p.display_name AS player_name, p.photo_url AS player_photo, p.primary_position,
-            ft.name AS from_team_name, ft.logo_url AS from_team_logo,
-            tt.name AS to_team_name, tt.logo_url AS to_team_logo
+    ft.name AS from_team_name, ft.logo_url AS from_team_logo,
+    tt.name AS to_team_name, tt.logo_url AS to_team_logo
      FROM transfers tr
      JOIN persons p ON tr.person_id = p.person_id
      LEFT JOIN teams ft ON tr.from_team_id = ft.team_id
@@ -113,11 +108,6 @@ exports.remove = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Team deleted' });
 });
 
-// ════════════════════════════════════════════════════════════════
-// NEW: Complex Query — Squad value ranking
-// GET /teams/squad-values?limit=20
-// Multi-table join + aggregation: teams → contracts → persons
-// ════════════════════════════════════════════════════════════════
 
 exports.getSquadValueRanking = asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit) || 20;

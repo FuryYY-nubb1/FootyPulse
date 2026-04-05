@@ -1,18 +1,7 @@
-// ============================================
-// src/models/articleModel.js
-// ============================================
-// UPDATED: All DML operations (create, update, delete) use
-//          explicit transaction control (BEGIN/COMMIT/ROLLBACK).
-//          Added publishArticle() that calls sp_publish_article procedure.
-//          Added getArticleStats() that calls fn_get_article_stats function.
-//          Added complex queries for analytics endpoints.
-// ============================================
-
 const db = require('../config/db');
 
 const ArticleModel = {
-  // ── READ operations (no transaction needed) ──
-
+  
   async getAll(limit = 20, offset = 0, filters = {}) {
     let query = `
       SELECT a.*, t.name AS team_name, comp.name AS competition_name, p.display_name AS person_name
@@ -66,14 +55,6 @@ const ArticleModel = {
     return result.rows[0];
   },
 
-  // ════════════════════════════════════════════════════════════════
-  // DML OPERATIONS — All use explicit transaction control
-  // ════════════════════════════════════════════════════════════════
-
-  /**
-   * Create an article with explicit transaction control.
-   * BEGIN → INSERT article → COMMIT / ROLLBACK
-   */
   async create(fields) {
     const client = await db.getClient();
     try {
@@ -81,8 +62,8 @@ const ArticleModel = {
 
       const result = await client.query(
         `INSERT INTO articles (slug, title, subtitle, excerpt, content, article_type, media,
-                               author_name, author_id, published_at, status, is_featured, is_breaking,
-                               tags, team_id, competition_id, person_id, match_id, meta_description)
+        author_name, author_id, published_at, status, is_featured, is_breaking,
+        tags, team_id, competition_id, person_id, match_id, meta_description)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
         [fields.slug, fields.title, fields.subtitle, fields.excerpt, fields.content,
          fields.article_type || 'news', fields.media ? JSON.stringify(fields.media) : '{}',

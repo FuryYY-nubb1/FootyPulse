@@ -1,9 +1,3 @@
-// ============================================
-// src/models/achievementModel.js
-// ============================================
-// UPDATED: All DML operations use explicit transaction control.
-//   Added getMostDecorated() → complex query for most decorated players/teams.
-// ============================================
 
 const db = require('../config/db');
 
@@ -105,13 +99,13 @@ const AchievementModel = {
     if (type === 'team') {
       const result = await db.query(
         `SELECT t.team_id, t.name AS team_name, t.short_name, t.logo_url AS team_logo,
-                co.name AS country_name,
-                COUNT(*) AS total_achievements,
-                COUNT(*) FILTER (WHERE a.is_major) AS major_trophies,
-                COUNT(*) FILTER (WHERE a.achievement_type = 'league_title') AS league_titles,
-                COUNT(*) FILTER (WHERE a.achievement_type IN ('continental_winner', 'world_club')) AS continental_titles,
-                COUNT(*) FILTER (WHERE a.achievement_type IN ('cup_winner', 'supercup', 'shield')) AS cup_wins,
-                STRING_AGG(DISTINCT comp.short_name, ', ' ORDER BY comp.short_name) AS competitions_won
+        co.name AS country_name,
+        COUNT(*) AS total_achievements,
+        COUNT(*) FILTER (WHERE a.is_major) AS major_trophies,
+        COUNT(*) FILTER (WHERE a.achievement_type = 'league_title') AS league_titles,
+        COUNT(*) FILTER (WHERE a.achievement_type IN ('continental_winner', 'world_club')) AS continental_titles,
+        COUNT(*) FILTER (WHERE a.achievement_type IN ('cup_winner', 'supercup', 'shield')) AS cup_wins,
+        STRING_AGG(DISTINCT comp.short_name, ', ' ORDER BY comp.short_name) AS competitions_won
          FROM achievements a
          JOIN teams t ON a.team_id = t.team_id
          JOIN countries co ON t.country_id = co.country_id
@@ -128,13 +122,13 @@ const AchievementModel = {
     // Player achievements
     const result = await db.query(
       `SELECT p.person_id, p.display_name, p.photo_url, p.primary_position,
-              co.name AS nationality,
-              t.name AS current_team, t.logo_url AS team_logo,
-              COUNT(*) AS total_achievements,
-              COUNT(*) FILTER (WHERE a.is_major) AS major_awards,
-              COUNT(*) FILTER (WHERE a.achievement_type IN ('ballon_dor', 'fifa_best')) AS individual_awards,
-              COUNT(*) FILTER (WHERE a.achievement_type IN ('golden_boot', 'top_scorer', 'top_assists')) AS scoring_awards,
-              STRING_AGG(DISTINCT a.title, ', ' ORDER BY a.title) AS award_titles
+      co.name AS nationality,
+      t.name AS current_team, t.logo_url AS team_logo,
+      COUNT(*) AS total_achievements,
+      COUNT(*) FILTER (WHERE a.is_major) AS major_awards,
+      COUNT(*) FILTER (WHERE a.achievement_type IN ('ballon_dor', 'fifa_best')) AS individual_awards,
+      COUNT(*) FILTER (WHERE a.achievement_type IN ('golden_boot', 'top_scorer', 'top_assists')) AS scoring_awards,
+      STRING_AGG(DISTINCT a.title, ', ' ORDER BY a.title) AS award_titles
        FROM achievements a
        JOIN persons p ON a.person_id = p.person_id
        LEFT JOIN countries co ON p.nationality_id = co.country_id

@@ -1,25 +1,8 @@
--- ============================================================================
--- FOOTYPULSE — Match & League Migration
--- ============================================================================
--- Adds: shadow table, trigger, function, procedure for match/league system
--- Run this AFTER schema.sql and poll_votes.sql
---
--- COVERS:
---   3. Explicit Transaction Control  → used in matchModel.js, standingModel.js
---   4. Trigger                       → trg_audit_match (logs match DML to shadow table)
---   5. Function                      → fn_get_league_stats (computed league statistics)
---   6. Procedure                     → sp_record_match_result (multi-step match result recording)
---   7. Complex Queries               → demonstrated in controller endpoints
--- ============================================================================
-
-
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  1. SHADOW TABLE — Audit log for match changes (used by trigger)       ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- match info audit er jonno
 
 CREATE TABLE IF NOT EXISTS match_audit (
     audit_id    SERIAL PRIMARY KEY,
-    action      VARCHAR(10) NOT NULL,              -- 'INSERT', 'UPDATE', 'DELETE'
+    action      VARCHAR(10) NOT NULL,              
     match_id    INT,
     season_id   INT,
     home_team_id INT,
@@ -27,38 +10,29 @@ CREATE TABLE IF NOT EXISTS match_audit (
     home_score  SMALLINT,
     away_score  SMALLINT,
     status      VARCHAR(12),
-    changed_by  VARCHAR(100),                      -- application can set via SET LOCAL
+    changed_by  VARCHAR(100),
     performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    old_values  JSONB,                             -- previous row data (for UPDATE/DELETE)
-    new_values  JSONB                              -- new row data (for INSERT/UPDATE)
+    old_values  JSONB,                             
+    new_values  JSONB                              
 );
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  2. TRIGGER — Log every match INSERT/UPDATE/DELETE to audit table      ║
--- ║     (Data validation + logging to shadow table)                        ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
 
 CREATE OR REPLACE FUNCTION fn_audit_match()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- ── Data validation BEFORE insert/update ──
     IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
-        -- Validate: home and away team cannot be the same
         IF NEW.home_team_id = NEW.away_team_id THEN
             RAISE EXCEPTION 'Home team and away team cannot be the same (team_id: %)', NEW.home_team_id
                 USING ERRCODE = 'P0010';
         END IF;
 
-        -- Validate: scores cannot be negative
         IF NEW.home_score IS NOT NULL AND NEW.home_score < 0 THEN
             RAISE EXCEPTION 'Home score cannot be negative' USING ERRCODE = 'P0011';
         END IF;
         IF NEW.away_score IS NOT NULL AND NEW.away_score < 0 THEN
             RAISE EXCEPTION 'Away score cannot be negative' USING ERRCODE = 'P0012';
         END IF;
-
-        -- Validate: match_date cannot be in the far future (more than 1 year)
         IF NEW.match_date > CURRENT_DATE + INTERVAL '1 year' THEN
             RAISE EXCEPTION 'Match date cannot be more than 1 year in the future' USING ERRCODE = 'P0013';
         END IF;
@@ -66,24 +40,20 @@ BEGIN
 
     -- ── Logging to shadow table ──
     IF TG_OP = 'INSERT' THEN
-        INSERT INTO match_audit (action, match_id, season_id, home_team_id, away_team_id,
-                                  home_score, away_score, status, new_values)
+        INSERT INTO match_audit (action, match_id, season_id, home_team_id, away_team_id,home_score, away_score, status, new_values)
         VALUES ('INSERT', NEW.match_id, NEW.season_id, NEW.home_team_id, NEW.away_team_id,
-                NEW.home_score, NEW.away_score, NEW.status,
-                row_to_json(NEW)::JSONB);
+        NEW.home_score, NEW.away_score, NEW.status,
+        row_to_json(NEW)::JSONB);
         RETURN NEW;
 
     ELSIF TG_OP = 'UPDATE' THEN
         INSERT INTO match_audit (action, match_id, season_id, home_team_id, away_team_id,
-                                  home_score, away_score, status, old_values, new_values)
-        VALUES ('UPDATE', NEW.match_id, NEW.season_id, NEW.home_team_id, NEW.away_team_id,
-                NEW.home_score, NEW.away_score, NEW.status,
-                row_to_json(OLD)::JSONB, row_to_json(NEW)::JSONB);
+         home_score, away_score, status, old_values, new_values)
+        VALUES ('UPDATE', NEW.match_id, NEW.season_id, NEW.home_team_id, NEW.away_team_id,NEW.home_score, NEW.away_score, NEW.status,row_to_json(OLD)::JSONB, row_to_json(NEW)::JSONB);
         RETURN NEW;
 
     ELSIF TG_OP = 'DELETE' THEN
-        INSERT INTO match_audit (action, match_id, season_id, home_team_id, away_team_id,
-                                  home_score, away_score, status, old_values)
+        INSERT INTO match_audit (action, match_id, season_id, home_team_id, away_team_id,home_score, away_score, status, old_values)
         VALUES ('DELETE', OLD.match_id, OLD.season_id, OLD.home_team_id, OLD.away_team_id,
                 OLD.home_score, OLD.away_score, OLD.status,
                 row_to_json(OLD)::JSONB);
@@ -103,12 +73,7 @@ FOR EACH ROW
 EXECUTE FUNCTION fn_audit_match();
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  3. FUNCTION — fn_get_league_stats                                     ║
--- ║     Returns computed league statistics for a given season:              ║
--- ║     total matches, goals, avg goals/match, top scorer team,            ║
--- ║     most wins team, biggest win, home/away win percentages             ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- function geting league stats for a seaosnn
 
 CREATE OR REPLACE FUNCTION fn_get_league_stats(p_season_id INT)
 RETURNS TABLE (
@@ -175,7 +140,6 @@ BEGIN
         ORDER BY (home_score + away_score) DESC
         LIMIT 1
     ),
-    -- Team with most goals scored (home + away combined)
     team_goals AS (
         SELECT t.name AS tname, SUM(g) AS total_g
         FROM (
@@ -188,7 +152,6 @@ BEGIN
         ORDER BY total_g DESC
         LIMIT 1
     ),
-    -- Team with most wins
     team_wins AS (
         SELECT t.name AS tname, COUNT(*) AS total_w
         FROM (
@@ -239,15 +202,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  4. PROCEDURE — sp_record_match_result                                 ║
--- ║     Multi-step workflow that:                                          ║
--- ║       Step 1: Updates match score & status to 'finished'               ║
--- ║       Step 2: Updates standings for both teams (W/D/L, GF, GA, pts)   ║
--- ║       Step 3: Updates manager contract record (matches, wins, etc.)    ║
--- ║     All within one transaction — committed by the caller.              ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- procedure for getting the match resut of a new match event
 
 CREATE OR REPLACE PROCEDURE sp_record_match_result(
     p_match_id    INT,
@@ -267,9 +222,7 @@ DECLARE
     v_home_manager_contract INT;
     v_away_manager_contract INT;
 BEGIN
-    -- ════════════════════════════════════════
-    -- Step 1: Validate and update match record
-    -- ════════════════════════════════════════
+    -- first we are checking the validation for the matchhh
     SELECT season_id, home_team_id, away_team_id, status
     INTO v_season_id, v_home_team_id, v_away_team_id, v_current_status
     FROM matches WHERE match_id = p_match_id;
@@ -296,13 +249,11 @@ BEGIN
         away_formation = COALESCE(p_away_formation, away_formation)
     WHERE match_id = p_match_id;
 
-    -- ════════════════════════════════════════
-    -- Step 2: Update standings for both teams
-    -- ════════════════════════════════════════
+    --- ebar standing updation
 
-    -- Home team standing update
+    -- home teamm
     IF p_home_score > p_away_score THEN
-        -- Home win
+        -- home team wins
         UPDATE standings
         SET played = played + 1, won = won + 1,
             goals_for = goals_for + p_home_score,
@@ -310,7 +261,7 @@ BEGIN
             points = points + 3
         WHERE season_id = v_season_id AND team_id = v_home_team_id;
     ELSIF p_home_score = p_away_score THEN
-        -- Draw
+        -- deaw
         UPDATE standings
         SET played = played + 1, drawn = drawn + 1,
             goals_for = goals_for + p_home_score,
@@ -318,7 +269,7 @@ BEGIN
             points = points + 1
         WHERE season_id = v_season_id AND team_id = v_home_team_id;
     ELSE
-        -- Home loss
+        -- home team  loss
         UPDATE standings
         SET played = played + 1, lost = lost + 1,
             goals_for = goals_for + p_home_score,
@@ -326,7 +277,7 @@ BEGIN
         WHERE season_id = v_season_id AND team_id = v_home_team_id;
     END IF;
 
-    -- Away team standing update
+    -- same for awayyy
     IF p_away_score > p_home_score THEN
         -- Away win
         UPDATE standings
@@ -352,11 +303,6 @@ BEGIN
         WHERE season_id = v_season_id AND team_id = v_away_team_id;
     END IF;
 
-    -- ════════════════════════════════════════
-    -- Step 3: Update manager contract records
-    -- ════════════════════════════════════════
-
-    -- Find current manager contract for home team
     SELECT contract_id INTO v_home_manager_contract
     FROM contracts
     WHERE team_id = v_home_team_id AND contract_type = 'manager' AND is_current = true
@@ -385,16 +331,11 @@ BEGIN
             losses = losses + CASE WHEN p_away_score < p_home_score THEN 1 ELSE 0 END
         WHERE contract_id = v_away_manager_contract;
     END IF;
-
-    -- Transaction is committed by the caller (explicit COMMIT in application code)
 END;
 $$;
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  5. FUNCTION — fn_get_team_form                                        ║
--- ║     Returns computed recent form for a team: last N matches results     ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- get team for the last 5 matches heh..
 
 CREATE OR REPLACE FUNCTION fn_get_team_form(p_team_id INT, p_limit INT DEFAULT 5)
 RETURNS TABLE (

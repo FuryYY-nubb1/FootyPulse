@@ -1,6 +1,3 @@
-// ============================================
-// src/controllers/commentsController.js
-// ============================================
 
 const CommentModel = require('../models/commentModel');
 const asyncHandler = require('../utils/asyncHandler');

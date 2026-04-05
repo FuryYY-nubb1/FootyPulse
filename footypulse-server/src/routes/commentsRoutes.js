@@ -1,9 +1,4 @@
-// ============================================
-// src/routes/commentsRoutes.js
-// ============================================
-// UPDATED: POST / (create) now requires auth middleware
-//          so only authenticated users can comment.
-// ============================================
+
 
 const router = require('express').Router();
 const controller = require('../controllers/commentsController');

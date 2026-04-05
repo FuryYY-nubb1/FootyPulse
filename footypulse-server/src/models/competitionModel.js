@@ -1,17 +1,6 @@
-// ============================================
-// src/models/competitionModel.js
-// ============================================
-// UPDATED: All DML operations (create, update, delete) use
-//          explicit transaction control (BEGIN/COMMIT/ROLLBACK).
-//          Added setupSeason() that calls sp_setup_competition_season procedure.
-//          Added getOverview() that calls fn_get_competition_overview function.
-// ============================================
-
 const db = require('../config/db');
 
 const CompetitionModel = {
-  // ── READ operations (no transaction needed) ──
-
   async getAll(limit = 20, offset = 0, filters = {}) {
     let query = `
       SELECT comp.*, c.name AS country_name
@@ -50,14 +39,6 @@ const CompetitionModel = {
     return result.rows[0];
   },
 
-  // ════════════════════════════════════════════════════════════════
-  // DML OPERATIONS — All use explicit transaction control
-  // ════════════════════════════════════════════════════════════════
-
-  /**
-   * Create a competition with explicit transaction control.
-   * BEGIN → INSERT competition → COMMIT / ROLLBACK
-   */
   async create(fields) {
     const client = await db.getClient();
     try {
@@ -80,10 +61,6 @@ const CompetitionModel = {
     }
   },
 
-  /**
-   * Update a competition with explicit transaction control.
-   * BEGIN → UPDATE competition → COMMIT / ROLLBACK
-   */
   async update(id, fields) {
     const client = await db.getClient();
     try {
@@ -110,10 +87,6 @@ const CompetitionModel = {
     }
   },
 
-  /**
-   * Delete a competition with explicit transaction control.
-   * BEGIN → DELETE competition → COMMIT / ROLLBACK
-   */
   async delete(id) {
     const client = await db.getClient();
     try {
@@ -142,20 +115,6 @@ const CompetitionModel = {
     return parseInt(result.rows[0].count);
   },
 
-  // ════════════════════════════════════════════════════════════════
-  // PROCEDURE CALL — sp_setup_competition_season
-  // Multi-step: deactivate old seasons → create new season → create standings
-  // ════════════════════════════════════════════════════════════════
-
-  /**
-   * Set up a new season for a competition using the stored procedure.
-   * Uses explicit transaction control: BEGIN → CALL procedure → COMMIT / ROLLBACK.
-   * The procedure handles:
-   *   1. Validate competition exists
-   *   2. Mark all existing seasons as non-current
-   *   3. Create the new season (is_current = true)
-   *   4. Create initial standings rows for all provided teams
-   */
   async setupSeason(competitionId, seasonName, startDate, endDate, teamIds, groupName = null) {
     const client = await db.getClient();
     try {
@@ -201,15 +160,7 @@ const CompetitionModel = {
     }
   },
 
-  // ════════════════════════════════════════════════════════════════
-  // FUNCTION CALL — fn_get_competition_overview
-  // ════════════════════════════════════════════════════════════════
 
-  /**
-   * Get comprehensive competition overview using the database function.
-   * Returns: total seasons, current season info, team count, match count,
-   * goals, articles, and league leader.
-   */
   async getOverview(competitionId) {
     const result = await db.query(
       'SELECT * FROM fn_get_competition_overview($1)',
@@ -218,9 +169,6 @@ const CompetitionModel = {
     return result.rows[0] || null;
   },
 
-  /**
-   * Get audit log (from shadow table populated by trigger)
-   */
   async getAuditLog(competitionId = null, limit = 50) {
     let query = 'SELECT * FROM competition_audit';
     const values = [];

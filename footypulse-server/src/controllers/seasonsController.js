@@ -1,5 +1,3 @@
-
-
 const SeasonModel = require('../models/seasonModel');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');

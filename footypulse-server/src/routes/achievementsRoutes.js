@@ -1,8 +1,3 @@
-// ============================================
-// src/routes/achievementsRoutes.js
-// ============================================
-// UPDATED: Added GET /most-decorated → complex query
-// ============================================
 
 const router = require('express').Router();
 const controller = require('../controllers/achievementsController');

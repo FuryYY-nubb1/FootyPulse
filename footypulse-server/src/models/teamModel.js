@@ -1,10 +1,3 @@
-// ============================================
-// src/models/teamModel.js
-// ============================================
-// UPDATED: All DML operations use explicit transaction control.
-//   Added getSquadValueRanking() → complex query.
-// ============================================
-
 const db = require('../config/db');
 
 const TeamModel = {
@@ -99,19 +92,18 @@ const TeamModel = {
     return parseInt(result.rows[0].count);
   },
 
-  // ── Complex Query: squad value ranking across all teams ──
   async getSquadValueRanking(limit = 20) {
     const result = await db.query(
       `SELECT t.team_id, t.name AS team_name, t.short_name, t.logo_url AS team_logo,
-              co.name AS country_name,
-              COUNT(p.person_id) AS squad_size,
-              COALESCE(SUM(p.market_value), 0) AS total_squad_value,
-              ROUND(AVG(p.market_value) FILTER (WHERE p.market_value > 0), 2) AS avg_player_value,
-              MAX(p.market_value) AS highest_valued_player,
-              (SELECT p2.display_name FROM persons p2
-               JOIN contracts c2 ON p2.person_id = c2.person_id
-               WHERE c2.team_id = t.team_id AND c2.is_current = TRUE
-               ORDER BY p2.market_value DESC NULLS LAST LIMIT 1) AS top_player_name
+      co.name AS country_name,
+      COUNT(p.person_id) AS squad_size,
+      COALESCE(SUM(p.market_value), 0) AS total_squad_value,
+      ROUND(AVG(p.market_value) FILTER (WHERE p.market_value > 0), 2) AS avg_player_value,
+      MAX(p.market_value) AS highest_valued_player,
+      (SELECT p2.display_name FROM persons p2
+        JOIN contracts c2 ON p2.person_id = c2.person_id
+        WHERE c2.team_id = t.team_id AND c2.is_current = TRUE
+        ORDER BY p2.market_value DESC NULLS LAST LIMIT 1) AS top_player_name
        FROM teams t
        JOIN countries co ON t.country_id = co.country_id
        JOIN contracts c ON c.team_id = t.team_id AND c.is_current = TRUE AND c.contract_type IN ('player', 'loan')

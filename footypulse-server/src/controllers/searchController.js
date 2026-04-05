@@ -1,13 +1,3 @@
-// ============================================
-// src/controllers/searchController.js
-// ============================================
-// UPDATED:
-//   - Persons search checks display_name, first_name, last_name
-//   - Players query JOINs contracts + teams to include team_name
-//   - Returns "players" key for frontend compatibility
-//   - Cross-references: player teams included in Teams and Matches results
-//   - Match search finds matches for player teams + direct team name match
-// ============================================
 
 const db = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
@@ -24,15 +14,13 @@ exports.search = asyncHandler(async (req, res) => {
   const searchTerm = `%${q.trim()}%`;
   const results = {};
 
-  // ── Players / Persons ──
-  // JOIN contracts + teams to get team_name, team_logo, jersey_number
   if (type === 'all' || type === 'persons' || type === 'players') {
     const persons = await db.query(
       `SELECT p.person_id, p.display_name, p.person_type, p.primary_position,
-              p.photo_url, p.market_value,
-              t.name AS team_name, t.logo_url AS team_logo, t.team_id,
-              c.jersey_number,
-              'person' AS result_type
+      p.photo_url, p.market_value,
+      t.name AS team_name, t.logo_url AS team_logo, t.team_id,
+      c.jersey_number,
+      'person' AS result_type
        FROM persons p
        LEFT JOIN contracts c ON c.person_id = p.person_id AND c.is_current = true
        LEFT JOIN teams t ON c.team_id = t.team_id
@@ -45,16 +33,14 @@ exports.search = asyncHandler(async (req, res) => {
     results.players = persons.rows;
   }
 
-  // Collect team IDs from matched players' current contracts
   let playerTeamIds = [];
   if (results.players && results.players.length > 0) {
     playerTeamIds = results.players
       .filter(p => p.team_id)
       .map(p => p.team_id)
-      .filter((id, i, arr) => arr.indexOf(id) === i); // unique
+      .filter((id, i, arr) => arr.indexOf(id) === i);
   }
 
-  // ── Teams ──
   // Direct name match + teams from matched players' contracts
   if (type === 'all' || type === 'teams') {
     let teamQuery = `
@@ -76,7 +62,6 @@ exports.search = asyncHandler(async (req, res) => {
     results.teams = teams.rows;
   }
 
-  // ── Competitions ──
   if (type === 'all' || type === 'competitions') {
     const competitions = await db.query(
       `SELECT competition_id, name, short_name, competition_type, logo_url, 'competition' AS result_type
@@ -86,7 +71,6 @@ exports.search = asyncHandler(async (req, res) => {
     results.competitions = competitions.rows;
   }
 
-  // ── Articles ──
   if (type === 'all' || type === 'articles') {
     const articles = await db.query(
       `SELECT article_id, title, slug, excerpt, article_type,
@@ -100,8 +84,6 @@ exports.search = asyncHandler(async (req, res) => {
     results.articles = articles.rows;
   }
 
-  // ── Matches ──
-  // Matches for player teams + direct team name match
   if (type === 'all' || type === 'matches') {
     const allTeamIds = [...playerTeamIds];
 
@@ -119,12 +101,12 @@ exports.search = asyncHandler(async (req, res) => {
     if (allTeamIds.length > 0) {
       const matches = await db.query(
         `SELECT m.match_id, m.match_date, m.kick_off_time, m.status,
-                m.home_score, m.away_score,
-                m.home_team_id, m.away_team_id,
-                ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
-                at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
-                comp.name AS competition_name, comp.logo_url AS competition_logo,
-                'match' AS result_type
+        m.home_score, m.away_score,
+        m.home_team_id, m.away_team_id,
+        ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
+        at.name AS away_team_name, at.short_name AS away_short, at.logo_url AS away_logo,
+        comp.name AS competition_name, comp.logo_url AS competition_logo,
+        'match' AS result_type
          FROM matches m
          JOIN teams ht ON m.home_team_id = ht.team_id
          JOIN teams at ON m.away_team_id = at.team_id

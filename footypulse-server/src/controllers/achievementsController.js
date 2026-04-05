@@ -1,8 +1,3 @@
-// ============================================
-// src/controllers/achievementsController.js
-// ============================================
-// UPDATED: Added getMostDecorated() → complex query
-// ============================================
 
 const AchievementModel = require('../models/achievementModel');
 const asyncHandler = require('../utils/asyncHandler');
@@ -47,13 +42,6 @@ exports.remove = asyncHandler(async (req, res) => {
   if (!achievement) throw ApiError.notFound('Achievement not found');
   res.json({ success: true, message: 'Achievement deleted' });
 });
-
-// ════════════════════════════════════════════════════════════════
-// NEW: Complex Query — Most decorated players or teams
-// GET /achievements/most-decorated?type=player&major_only=true&limit=20
-// GET /achievements/most-decorated?type=team&major_only=true&limit=20
-// Multi-table join + aggregation across achievements, persons/teams, competitions
-// ════════════════════════════════════════════════════════════════
 
 exports.getMostDecorated = asyncHandler(async (req, res) => {
   const type = req.query.type || 'player';

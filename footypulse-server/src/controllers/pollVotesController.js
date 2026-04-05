@@ -1,5 +1,3 @@
-
-
 const PollVoteModel = require('../models/pollVoteModel');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');

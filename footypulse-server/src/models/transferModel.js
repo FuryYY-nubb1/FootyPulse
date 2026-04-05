@@ -1,12 +1,3 @@
-// ============================================
-// src/models/transferModel.js
-// ============================================
-// UPDATED: All DML operations use explicit transaction control.
-//   Added executeTransfer() → calls sp_execute_transfer procedure.
-//   Added getTransferStats() → calls fn_get_transfer_stats function.
-//   Added getSpendingByLeague() → complex query.
-// ============================================
-
 const db = require('../config/db');
 
 const TransferModel = {
@@ -47,7 +38,6 @@ const TransferModel = {
     return result.rows[0];
   },
 
-  // ── DML with explicit transaction control ──
 
   async create(fields) {
     const client = await db.getClient();
@@ -105,7 +95,6 @@ const TransferModel = {
     return parseInt(result.rows[0].count);
   },
 
-  // ── Procedure: sp_execute_transfer ──
   async executeTransfer(personId, fromTeamId, toTeamId, transferType, fee, transferDate, windowYear, windowType, jerseyNumber) {
     const client = await db.getClient();
     try {
@@ -125,22 +114,20 @@ const TransferModel = {
     } catch (err) { await client.query('ROLLBACK'); throw err; } finally { client.release(); }
   },
 
-  // ── Function: fn_get_transfer_stats ──
   async getTransferStats(windowYear = null, windowType = null) {
     const result = await db.query('SELECT * FROM fn_get_transfer_stats($1, $2)', [windowYear, windowType]);
     return result.rows;
   },
 
-  // ── Complex Query: spending by league ──
   async getSpendingByLeague(windowYear = null) {
     let query = `
       SELECT comp.competition_id, comp.name AS league_name, comp.logo_url AS league_logo,
-             COUNT(tr.transfer_id) AS total_transfers,
-             COALESCE(SUM(tr.fee), 0) AS total_spent,
-             ROUND(AVG(tr.fee) FILTER (WHERE tr.fee > 0), 2) AS avg_fee,
-             MAX(tr.fee) AS biggest_fee,
-             COUNT(*) FILTER (WHERE tr.transfer_type = 'loan') AS loan_count,
-             COUNT(*) FILTER (WHERE tr.transfer_type = 'permanent') AS permanent_count
+      COUNT(tr.transfer_id) AS total_transfers,
+      COALESCE(SUM(tr.fee), 0) AS total_spent,
+      ROUND(AVG(tr.fee) FILTER (WHERE tr.fee > 0), 2) AS avg_fee,
+      MAX(tr.fee) AS biggest_fee,
+      COUNT(*) FILTER (WHERE tr.transfer_type = 'loan') AS loan_count,
+      COUNT(*) FILTER (WHERE tr.transfer_type = 'permanent') AS permanent_count
       FROM transfers tr
       JOIN teams tt ON tr.to_team_id = tt.team_id
       JOIN countries c ON tt.country_id = c.country_id

@@ -1,11 +1,3 @@
-// ============================================
-// src/models/commentModel.js
-// ============================================
-// UPDATED: create() uses explicit transaction control
-//          (BEGIN/COMMIT/ROLLBACK) for the multi-step
-//          insert comment + update article comment_count.
-//          delete() also uses explicit transaction control.
-// ============================================
 
 const db = require('../config/db');
 

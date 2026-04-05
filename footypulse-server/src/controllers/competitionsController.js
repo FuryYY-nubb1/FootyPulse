@@ -1,11 +1,3 @@
-// ============================================
-// src/controllers/competitionsController.js
-// ============================================
-// UPDATED: Added endpoints that use:
-//   - Stored Procedure: sp_setup_competition_season (POST /competitions/:id/setup-season)
-//   - Database Function: fn_get_competition_overview (GET /competitions/:id/overview)
-//   - Audit log from shadow table (GET /competitions/audit)
-// ============================================
 
 const CompetitionModel = require('../models/competitionModel');
 const asyncHandler = require('../utils/asyncHandler');
@@ -13,7 +5,6 @@ const ApiError = require('../utils/ApiError');
 const { getPagination, paginate } = require('../utils/pagination');
 const db = require('../config/db');
 
-// ── Standard CRUD ──
 
 exports.getAll = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPagination(req.query);
@@ -54,10 +45,10 @@ exports.getMatches = asyncHandler(async (req, res) => {
 
   let query = `
     SELECT m.*,
-           ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
-           at2.name AS away_team_name, at2.short_name AS away_short, at2.logo_url AS away_logo,
-           s.name AS season_name, comp.name AS competition_name,
-           st.name AS stadium_name
+    ht.name AS home_team_name, ht.short_name AS home_short, ht.logo_url AS home_logo,
+    at2.name AS away_team_name, at2.short_name AS away_short, at2.logo_url AS away_logo,
+    s.name AS season_name, comp.name AS competition_name,
+    st.name AS stadium_name
     FROM matches m
     JOIN teams ht ON m.home_team_id = ht.team_id
     JOIN teams at2 ON m.away_team_id = at2.team_id
@@ -129,8 +120,8 @@ exports.getScorers = asyncHandler(async (req, res) => {
 
   const scorersQuery = await db.query(
     `SELECT p.person_id AS player_id, p.display_name AS player_name, p.photo_url AS photo,
-            t.name AS team_name, t.logo_url AS team_logo,
-            COUNT(*) AS goals
+    t.name AS team_name, t.logo_url AS team_logo,
+    COUNT(*) AS goals
      FROM match_events me
      JOIN matches m ON me.match_id = m.match_id
      JOIN persons p ON me.person_id = p.person_id
@@ -145,8 +136,8 @@ exports.getScorers = asyncHandler(async (req, res) => {
 
   const assistsQuery = await db.query(
     `SELECT p.person_id AS player_id, p.display_name AS player_name, p.photo_url AS photo,
-            t.name AS team_name, t.logo_url AS team_logo,
-            COUNT(*) AS assists
+      t.name AS team_name, t.logo_url AS team_logo,
+      COUNT(*) AS assists
      FROM match_events me
      JOIN matches m ON me.match_id = m.match_id
      JOIN persons p ON me.related_person_id = p.person_id
@@ -161,9 +152,9 @@ exports.getScorers = asyncHandler(async (req, res) => {
 
   const cardsQuery = await db.query(
     `SELECT p.person_id AS player_id, p.display_name AS player_name, p.photo_url AS photo,
-            t.name AS team_name, t.logo_url AS team_logo,
-            COUNT(*) FILTER (WHERE me.event_type = 'yellow') AS yellows,
-            COUNT(*) FILTER (WHERE me.event_type = 'red') AS reds
+    t.name AS team_name, t.logo_url AS team_logo,
+    COUNT(*) FILTER (WHERE me.event_type = 'yellow') AS yellows,
+    COUNT(*) FILTER (WHERE me.event_type = 'red') AS reds
      FROM match_events me
      JOIN matches m ON me.match_id = m.match_id
      JOIN persons p ON me.person_id = p.person_id
@@ -194,38 +185,38 @@ exports.getNews = asyncHandler(async (req, res) => {
 
   const result = await db.query(
     `SELECT DISTINCT
-            a.article_id AS id,
-            a.title,
-            a.slug,
-            a.excerpt,
-            a.media,
-            a.media->>'thumbnail' AS cover_image_url,
-            a.article_type,
-            a.published_at,
-            a.created_at,
-            a.view_count,
-            a.is_featured,
-            a.is_breaking,
-            a.author_name
+    a.article_id AS id,
+    a.title,
+    a.slug,
+    a.excerpt,
+    a.media,
+    a.media->>'thumbnail' AS cover_image_url,
+    a.article_type,
+    a.published_at,
+    a.created_at,
+    a.view_count,
+    a.is_featured,
+    a.is_breaking,
+    a.author_name
      FROM articles a
      LEFT JOIN teams t ON a.team_id = t.team_id
      LEFT JOIN contracts c ON c.team_id = t.team_id AND c.is_current = true
      LEFT JOIN seasons s ON s.competition_id = $1 AND s.is_current = true
      LEFT JOIN matches m ON a.match_id = m.match_id
      WHERE a.status = 'published'
-       AND (
-         a.competition_id = $1
-         OR a.team_id IN (
-           SELECT DISTINCT st.team_id FROM standings st
-           JOIN seasons s2 ON st.season_id = s2.season_id
-           WHERE s2.competition_id = $1
-         )
-         OR a.match_id IN (
-           SELECT m2.match_id FROM matches m2
-           JOIN seasons s3 ON m2.season_id = s3.season_id
-           WHERE s3.competition_id = $1
-         )
-       )
+    AND (
+      a.competition_id = $1
+      OR a.team_id IN (
+        SELECT DISTINCT st.team_id FROM standings st
+        JOIN seasons s2 ON st.season_id = s2.season_id
+        WHERE s2.competition_id = $1
+      )
+      OR a.match_id IN (
+        SELECT m2.match_id FROM matches m2
+        JOIN seasons s3 ON m2.season_id = s3.season_id
+        WHERE s3.competition_id = $1
+      )
+    )
      ORDER BY a.is_featured DESC, a.published_at DESC NULLS LAST
      LIMIT $2`,
     [id, limitVal]
@@ -251,16 +242,6 @@ exports.remove = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Competition deleted' });
 });
 
-// ════════════════════════════════════════════════════════════════
-// NEW: Stored Procedure — Set up competition season
-// POST /competitions/:id/setup-season
-// Uses sp_setup_competition_season which handles:
-//   1. Validate competition exists
-//   2. Mark all existing seasons as non-current
-//   3. Create new season (is_current = true)
-//   4. Create initial standings for all provided teams
-// All in one transaction with explicit BEGIN/COMMIT/ROLLBACK
-// ════════════════════════════════════════════════════════════════
 
 exports.setupSeason = asyncHandler(async (req, res) => {
   const competitionId = parseInt(req.params.id);
@@ -290,11 +271,6 @@ exports.setupSeason = asyncHandler(async (req, res) => {
   });
 });
 
-// ════════════════════════════════════════════════════════════════
-// NEW: Database Function — Competition overview
-// GET /competitions/:id/overview
-// Uses fn_get_competition_overview for computed statistics
-// ════════════════════════════════════════════════════════════════
 
 exports.getOverview = asyncHandler(async (req, res) => {
   const competitionId = parseInt(req.params.id);
@@ -307,11 +283,6 @@ exports.getOverview = asyncHandler(async (req, res) => {
   res.json({ success: true, data: overview });
 });
 
-// ════════════════════════════════════════════════════════════════
-// NEW: Audit log from shadow table (populated by trigger)
-// GET /competitions/audit
-// GET /competitions/audit/:competitionId
-// ════════════════════════════════════════════════════════════════
 
 exports.getAuditLog = asyncHandler(async (req, res) => {
   const competitionId = req.params.competitionId ? parseInt(req.params.competitionId) : null;

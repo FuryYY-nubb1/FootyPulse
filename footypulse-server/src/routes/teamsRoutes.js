@@ -1,8 +1,3 @@
-// ============================================
-// src/routes/teamsRoutes.js
-// ============================================
-// UPDATED: Added GET /squad-values → complex query (squad value ranking)
-// ============================================
 
 const router = require('express').Router();
 const controller = require('../controllers/teamsController');

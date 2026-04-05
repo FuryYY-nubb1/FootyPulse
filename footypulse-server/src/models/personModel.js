@@ -1,10 +1,3 @@
-// ============================================
-// src/models/personModel.js
-// ============================================
-// UPDATED: All DML operations use explicit transaction control.
-//   Added getCareerStats() → calls fn_get_player_career_stats function.
-//   Added getTopValuedByPosition() → complex query.
-// ============================================
 
 const db = require('../config/db');
 
@@ -108,11 +101,11 @@ const PersonModel = {
   async getTopValuedByPosition(limit = 10) {
     const result = await db.query(
       `SELECT p.person_id, p.display_name, p.photo_url, p.primary_position, p.market_value,
-              p.date_of_birth,
-              EXTRACT(YEAR FROM AGE(CURRENT_DATE, p.date_of_birth))::INT AS age,
-              c.name AS nationality, c.flag_url,
-              t.name AS team_name, t.short_name AS team_short, t.logo_url AS team_logo,
-              comp.name AS league_name
+      p.date_of_birth,
+      EXTRACT(YEAR FROM AGE(CURRENT_DATE, p.date_of_birth))::INT AS age,
+      c.name AS nationality, c.flag_url,
+      t.name AS team_name, t.short_name AS team_short, t.logo_url AS team_logo,
+      comp.name AS league_name
        FROM persons p
        LEFT JOIN countries c ON p.nationality_id = c.country_id
        LEFT JOIN contracts ct ON ct.person_id = p.person_id AND ct.is_current = TRUE AND ct.contract_type IN ('player', 'loan')

@@ -1,10 +1,3 @@
-// ============================================
-// src/controllers/pollsController.js
-// ============================================
-// UPDATED: vote() now uses req.user.user_id from JWT auth middleware
-//          instead of req.body.user_id (anonymous).
-//          getResults uses fn_get_poll_stats database function.
-// ============================================
 
 const PollModel = require('../models/pollModel');
 const PollVoteModel = require('../models/pollVoteModel');
@@ -51,11 +44,10 @@ exports.remove = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Poll deleted' });
 });
 
-// ── Vote on a poll (POST /polls/:id/votes) ──
-// REQUIRES AUTH: user_id comes from req.user (JWT), not req.body
+//checking the authintaction here
 exports.vote = asyncHandler(async (req, res) => {
   const pollId = parseInt(req.params.id);
-  const userId = String(req.user.user_id); // From JWT auth middleware
+  const userId = String(req.user.user_id); // from auth middleware
   const { selected_options, ip_hash } = req.body;
 
   if (!selected_options || !Array.isArray(selected_options) || selected_options.length === 0) {
@@ -72,25 +64,18 @@ exports.vote = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('This poll has expired');
   }
 
-  // Check if user already voted
   const existing = await PollVoteModel.getByUser(pollId, userId);
   if (existing) throw ApiError.conflict('You have already voted on this poll');
 
-  // Validate selected options exist in poll options
   const pollOptions = poll.options || [];
   for (const sel of selected_options) {
     const found = pollOptions.some((o, idx) => (o.id !== undefined ? o.id === sel : idx === sel));
     if (!found) throw ApiError.badRequest(`Invalid option: ${sel}`);
   }
 
-  // For single-choice polls, ensure only 1 option selected
   if (poll.poll_type === 'single' && selected_options.length > 1) {
     throw ApiError.badRequest('This poll allows only 1 selection');
   }
-
-  // Create the vote using stored procedure (sp_cast_poll_vote)
-  // The procedure handles: insert vote, update option counts, increment total
-  // All within explicit transaction control (BEGIN/COMMIT/ROLLBACK in model)
   const vote = await PollVoteModel.create({
     poll_id: pollId,
     user_id: userId,
@@ -104,11 +89,9 @@ exports.vote = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: { vote, poll: updatedPoll } });
 });
 
-// ── Get poll results using database function fn_get_poll_stats ──
 exports.getResults = asyncHandler(async (req, res) => {
   const pollId = parseInt(req.params.id);
 
-  // Use the database function for computed statistics
   const statsResult = await db.query('SELECT * FROM fn_get_poll_stats($1)', [pollId]);
 
   if (statsResult.rows.length === 0) {
@@ -134,7 +117,6 @@ exports.getResults = asyncHandler(async (req, res) => {
   });
 });
 
-// ── Check if user voted (GET /polls/:id/user-vote/:userId) ──
 exports.getUserVote = asyncHandler(async (req, res) => {
   const vote = await PollVoteModel.getByUser(req.params.id, req.params.userId);
   res.json({
